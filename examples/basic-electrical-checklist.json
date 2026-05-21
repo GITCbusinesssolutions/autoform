@@ -1,0 +1,49 @@
+{
+  "title": "Electrical Safety Checklist",
+  "badgeName": "ELEC CHECK",
+  "description": "Electrical safety inspection checklist with photos and sign-off.",
+  "badgeMandatoryState": "2",
+  "fields": [
+    {
+      "label": "RCDs Fitted",
+      "type": "select",
+      "options": ["Yes", "No", "N A"],
+      "required": true,
+      "additionalDetails": "Are all safety switches RCDs fitted and working properly?"
+    },
+    {
+      "label": "RCD Test Result",
+      "type": "select",
+      "options": ["Pass", "Fail", "N A"],
+      "required": true
+    },
+    {
+      "label": "Site Hazards",
+      "type": "checkbox",
+      "options": ["None", "Working at Heights", "Live Equipment", "Confined Space", "Other"],
+      "required": false
+    },
+    {
+      "label": "Hazard Notes",
+      "type": "textarea",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Site Hazards",
+          "operator": "NCON",
+          "value": "None"
+        }
+      ]
+    },
+    {
+      "label": "Before Photos",
+      "type": "photo",
+      "required": false
+    },
+    {
+      "label": "Technician Signature",
+      "type": "signature",
+      "required": true
+    }
+  ]
+}

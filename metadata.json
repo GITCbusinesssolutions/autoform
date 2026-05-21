@@ -1,0 +1,5 @@
+{
+  "name": "ServiceM8 Form & DOCX Generator",
+  "description": "Generate ServiceM8 forms and DOCX templates with merge fields using natural language.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,488 @@
+{
+  "title": "Electrical Service Closeout",
+  "badgeName": "ELEC CLOSE",
+  "description": "Mandatory service closeout form covering photos, service type, attendance, variations, delays, works completed, system status, additional works, conditional Test and Tag and emergency lighting summaries, finish time, and site close out.",
+  "badgeMandatoryState": "1",
+  "fields": [
+    {
+      "label": "Site Arrival Before Photos",
+      "type": "photo",
+      "required": true,
+      "additionalDetails": "Take BEFORE photos now using camera. Capture site condition prior to commencing works. Job cannot proceed without photos."
+    },
+    {
+      "label": "Service Type",
+      "type": "select",
+      "options": [
+        "General Electrical",
+        "Automation / Controls",
+        "Instrumentation / Calibration",
+        "BMS / SCADA",
+        "Switchboard Maintenance",
+        "Fire Systems",
+        "Emergency Lighting Testing",
+        "Test & Tag",
+        "Hazardous Area",
+        "Other"
+      ],
+      "required": true
+    },
+    {
+      "label": "Specify Service Type",
+      "type": "text",
+      "required": true,
+      "additionalDetails": "Provide a clear description of the service performed.",
+      "conditions": [
+        {
+          "questionLabel": "Service Type",
+          "operator": "EQ",
+          "value": "Other"
+        }
+      ]
+    },
+    {
+      "label": "Job Category",
+      "type": "select",
+      "options": [
+        "Scheduled Maintenance",
+        "Corrective",
+        "Reactive (Unplanned - Client Requested)",
+        "Call Out (After Hours)"
+      ],
+      "required": true
+    },
+    {
+      "label": "Technician Names",
+      "type": "text",
+      "required": true
+    },
+    {
+      "label": "No of Technicians on Site",
+      "type": "number",
+      "required": true
+    },
+    {
+      "label": "Start Time",
+      "type": "time",
+      "required": true,
+      "additionalDetails": "Enter start time in HH:MM format."
+    },
+    {
+      "label": "Estimated Time to Complete Hours",
+      "type": "number",
+      "required": true
+    },
+    {
+      "label": "Office Notified if Exceeding Estimate",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "additionalDetails": "If this job is likely to exceed the estimated time, have you notified office and or management?"
+    },
+    {
+      "label": "Variation Notification Acknowledgement",
+      "type": "select",
+      "options": [
+        "Acknowledged"
+      ],
+      "required": true,
+      "additionalDetails": "You must notify office and or management via phone, SMS or ServiceM8 before continuing works beyond the estimated timeframe. Please do not contact the client directly unless they are physically on site. All variations are to be managed through office and or management.",
+      "conditions": [
+        {
+          "questionLabel": "Office Notified if Exceeding Estimate",
+          "operator": "EQ",
+          "value": "No"
+        }
+      ]
+    },
+    {
+      "label": "Time Notified",
+      "type": "time",
+      "required": false,
+      "additionalDetails": "Enter notification time in HH:MM format."
+    },
+    {
+      "label": "Who was Notified",
+      "type": "text",
+      "required": false
+    },
+    {
+      "label": "Works Completed",
+      "type": "textarea",
+      "required": true,
+      "additionalDetails": "Enter works completed using short bullet points. Start each line with -. No paragraphs. Example format: - Isolated power to DB-1; - Replaced faulty contactor."
+    },
+    {
+      "label": "Delay Type",
+      "type": "select",
+      "options": [
+        "None",
+        "Client Delay",
+        "Access Issue",
+        "Awaiting Parts",
+        "Other"
+      ],
+      "required": true
+    },
+    {
+      "label": "Time Lost Hours",
+      "type": "number",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Delay Type",
+          "operator": "NEQ",
+          "value": "None"
+        }
+      ]
+    },
+    {
+      "label": "Delay Explanation",
+      "type": "text",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Delay Type",
+          "operator": "NEQ",
+          "value": "None"
+        }
+      ]
+    },
+    {
+      "label": "Office Notified of Delay",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Delay Type",
+          "operator": "NEQ",
+          "value": "None"
+        }
+      ],
+      "additionalDetails": "Has office and or management been notified of this delay?"
+    },
+    {
+      "label": "Delay Notification Acknowledgement",
+      "type": "select",
+      "options": [
+        "Acknowledged"
+      ],
+      "required": true,
+      "additionalDetails": "Please notify office and or management via phone, SMS or ServiceM8 as soon as possible. Delays must be communicated to ensure tracking and reporting.",
+      "conditions": [
+        {
+          "questionLabel": "Office Notified of Delay",
+          "operator": "EQ",
+          "value": "No"
+        }
+      ]
+    },
+    {
+      "label": "System Status on Exit",
+      "type": "select",
+      "options": [
+        "Fully Operational",
+        "Operational - Minor Issues",
+        "Not Fully Operational"
+      ],
+      "required": true
+    },
+    {
+      "label": "Action Required Follow Up Needed",
+      "type": "textarea",
+      "required": true,
+      "additionalDetails": "Enter works completed using bullet points only. Start each line with -.",
+      "conditions": [
+        {
+          "questionLabel": "System Status on Exit",
+          "operator": "NEQ",
+          "value": "Fully Operational"
+        }
+      ]
+    },
+    {
+      "label": "Minor Works Required",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true
+    },
+    {
+      "label": "Minor Works Details",
+      "type": "textarea",
+      "required": true,
+      "additionalDetails": "Enter works completed using bullet points only. Start each line with -.",
+      "conditions": [
+        {
+          "questionLabel": "Minor Works Required",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Major Works Required",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true
+    },
+    {
+      "label": "Major Works Details",
+      "type": "textarea",
+      "required": true,
+      "additionalDetails": "Enter works completed using bullet points only. Start each line with -.",
+      "conditions": [
+        {
+          "questionLabel": "Major Works Required",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Urgent Repair Required",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true
+    },
+    {
+      "label": "ETA for Quote to Client",
+      "type": "text",
+      "required": true,
+      "additionalDetails": "Enter quote ETA as a date and short note.",
+      "conditionMethod": "OR",
+      "conditions": [
+        {
+          "questionLabel": "Minor Works Required",
+          "operator": "EQ",
+          "value": "Yes"
+        },
+        {
+          "questionLabel": "Major Works Required",
+          "operator": "EQ",
+          "value": "Yes"
+        },
+        {
+          "questionLabel": "Urgent Repair Required",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Test Tag Completed",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Service Type",
+          "operator": "EQ",
+          "value": "Test & Tag"
+        }
+      ]
+    },
+    {
+      "label": "Total Items Tested",
+      "type": "number",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Test Tag Completed",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Test Tag Report Uploaded",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "additionalDetails": "Confirm Test and Tag register or report has been uploaded or provided to office.",
+      "conditions": [
+        {
+          "questionLabel": "Test Tag Completed",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Emergency Lighting Testing Completed",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Service Type",
+          "operator": "EQ",
+          "value": "Emergency Lighting Testing"
+        }
+      ]
+    },
+    {
+      "label": "Emergency Lighting Report Uploaded",
+      "type": "select",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Emergency Lighting Testing Completed",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ]
+    },
+    {
+      "label": "Job Completion Status",
+      "type": "select",
+      "options": [
+        "Completed",
+        "Return Visit Required"
+      ],
+      "required": true
+    },
+    {
+      "label": "What is Required to Return",
+      "type": "textarea",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Job Completion Status",
+          "operator": "EQ",
+          "value": "Return Visit Required"
+        }
+      ]
+    },
+    {
+      "label": "Finish Time",
+      "type": "time",
+      "required": true,
+      "additionalDetails": "Record actual finish time before leaving site. Enter time in HH:MM format."
+    },
+    {
+      "label": "Completion After Photos",
+      "type": "photo",
+      "required": true,
+      "additionalDetails": "Take AFTER photos now using camera. Capture completed works before leaving site. Job cannot be closed without photos."
+    },
+    {
+      "label": "Site Close Out Confirmed",
+      "type": "checkbox",
+      "docxOutput": "checkboxList",
+      "options": [
+        "SWMS Actioned",
+        "JSA Completed",
+        "Check In Completed",
+        "Check Out Completed",
+        "Site Left Safe",
+        "LOTO Removed (if applicable)",
+        "Office Notified Job Complete"
+      ],
+      "required": true
+    }
+  ],
+  "docxContent": {
+    "sections": [
+      {
+        "title": "Job Details",
+        "isStandardHeader": true,
+        "layout": "table",
+        "content": "Date: {MERGEFIELD calculation.todays_date \\* MERGEFORMAT}\nJob Address: {MERGEFIELD job.job_address_singleline \\* MERGEFORMAT}\nTechnician: {MERGEFIELD calculation.current_user_fullname \\* MERGEFORMAT}\nJob Status: {MERGEFIELD job.status \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Site Arrival",
+        "layout": "table",
+        "content": "Before Photos: {MERGEFIELD image_form_site_arrival_before_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Service Details",
+        "layout": "table",
+        "content": "Service Type: {MERGEFIELD form_service_type \\* MERGEFORMAT}\nSpecify Service Type: {MERGEFIELD form_specify_service_type \\* MERGEFORMAT}\nJob Category: {MERGEFIELD form_job_category \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Labour and Attendance",
+        "layout": "table",
+        "content": "Technician Names: {MERGEFIELD form_technician_names \\* MERGEFORMAT}\nNo of Technicians on Site: {MERGEFIELD form_no_of_technicians_on_site \\* MERGEFORMAT}\nStart Time: {MERGEFIELD form_start_time \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Estimated Time and Variation Control",
+        "layout": "table",
+        "content": "Estimated Time to Complete Hours: {MERGEFIELD form_estimated_time_to_complete_hours \\* MERGEFORMAT}\nOffice Notified if Exceeding Estimate: {MERGEFIELD form_office_notified_if_exceeding_estimate \\* MERGEFORMAT}\nVariation Notification Acknowledgement: {MERGEFIELD form_variation_notification_acknowledgement \\* MERGEFORMAT}\nTime Notified: {MERGEFIELD form_time_notified \\* MERGEFORMAT}\nWho was Notified: {MERGEFIELD form_who_was_notified \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Works Completed",
+        "layout": "table",
+        "content": "Works Completed: {MERGEFIELD form_works_completed \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Site Delays",
+        "layout": "table",
+        "content": "Delay Type: {MERGEFIELD form_delay_type \\* MERGEFORMAT}\nTime Lost Hours: {MERGEFIELD form_time_lost_hours \\* MERGEFORMAT}\nDelay Explanation: {MERGEFIELD form_delay_explanation \\* MERGEFORMAT}\nOffice Notified of Delay: {MERGEFIELD form_office_notified_of_delay \\* MERGEFORMAT}\nDelay Notification Acknowledgement: {MERGEFIELD form_delay_notification_acknowledgement \\* MERGEFORMAT}"
+      },
+      {
+        "title": "System Status on Exit",
+        "layout": "table",
+        "content": "System Status on Exit: {MERGEFIELD form_system_status_on_exit \\* MERGEFORMAT}\nAction Required Follow Up Needed: {MERGEFIELD form_action_required_follow_up_needed \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Additional Works Required",
+        "layout": "table",
+        "content": "Minor Works Required: {MERGEFIELD form_minor_works_required \\* MERGEFORMAT}\nMinor Works Details: {MERGEFIELD form_minor_works_details \\* MERGEFORMAT}\nMajor Works Required: {MERGEFIELD form_major_works_required \\* MERGEFORMAT}\nMajor Works Details: {MERGEFIELD form_major_works_details \\* MERGEFORMAT}\nUrgent Repair Required: {MERGEFIELD form_urgent_repair_required \\* MERGEFORMAT}\nETA for Quote to Client: {MERGEFIELD form_eta_for_quote_to_client \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Test and Tag Summary",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Service Type",
+          "operator": "EQ",
+          "value": "Test & Tag"
+        },
+        "content": "Test Tag Completed: {MERGEFIELD form_test_tag_completed \\* MERGEFORMAT}\nTotal Items Tested: {MERGEFIELD form_total_items_tested \\* MERGEFORMAT}\nTest Tag Report Uploaded: {MERGEFIELD form_test_tag_report_uploaded \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Emergency Lighting Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Service Type",
+          "operator": "EQ",
+          "value": "Emergency Lighting Testing"
+        },
+        "content": "Emergency Lighting Testing Completed: {MERGEFIELD form_emergency_lighting_testing_completed \\* MERGEFORMAT}\nEmergency Lighting Report Uploaded: {MERGEFIELD form_emergency_lighting_report_uploaded \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Job Completion",
+        "layout": "table",
+        "content": "Job Completion Status: {MERGEFIELD form_job_completion_status \\* MERGEFORMAT}\nWhat is Required to Return: {MERGEFIELD form_what_is_required_to_return \\* MERGEFORMAT}\nFinish Time: {MERGEFIELD form_finish_time \\* MERGEFORMAT}\nAfter Photos: {MERGEFIELD image_form_completion_after_photos_medium \\* MERGEFORMAT}\nSite Close Out Confirmed: {MERGEFIELD form_site_close_out_confirmed \\* MERGEFORMAT}"
+      }
+    ]
+  }
+}

@@ -1,0 +1,2274 @@
+{
+  "title": "Leak Location Report",
+  "badgeName": "LEAK LOC",
+  "description": "Leak location inspection report with property details, service scope, wet area testing, photos, leak cause, required works, and plumber observations.",
+  "badgeMandatoryState": "1",
+  "fields": [
+    {
+      "label": "Inspected By",
+      "type": "text",
+      "required": true,
+      "sortOrder": 1
+    },
+    {
+      "label": "Inspection Time",
+      "type": "time",
+      "required": true,
+      "additionalDetails": "Enter inspection time in HH:MM format.",
+      "sortOrder": 2
+    },
+    {
+      "label": "Insured Present",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "sortOrder": 3
+    },
+    {
+      "label": "Insured Name",
+      "type": "text",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Insured Present",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ],
+      "sortOrder": 4
+    },
+    {
+      "label": "Property Type",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Dwelling",
+        "Unit",
+        "Townhouse",
+        "Commercial",
+        "Other"
+      ],
+      "required": true,
+      "sortOrder": 5
+    },
+    {
+      "label": "Building Height",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Single Storey",
+        "Double Storey",
+        "Multi Storey",
+        "Other"
+      ],
+      "required": true,
+      "sortOrder": 6
+    },
+    {
+      "label": "Construction",
+      "type": "text",
+      "required": true,
+      "sortOrder": 7
+    },
+    {
+      "label": "Property Age Years",
+      "type": "number",
+      "required": false,
+      "sortOrder": 8
+    },
+    {
+      "label": "Condition of Property on Arrival",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Good",
+        "Fair",
+        "Poor"
+      ],
+      "required": true,
+      "sortOrder": 9
+    },
+    {
+      "label": "Details and Circumstances Surrounding Loss",
+      "type": "textarea",
+      "required": true,
+      "sortOrder": 10
+    },
+    {
+      "label": "Scope of Services Provided",
+      "type": "textarea",
+      "required": true,
+      "additionalDetails": "Use short bullet points for each service performed.",
+      "sortOrder": 11
+    },
+    {
+      "label": "Client Discussion",
+      "type": "textarea",
+      "required": false,
+      "sortOrder": 12
+    },
+    {
+      "label": "Pressure Test",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail"
+      ],
+      "required": true,
+      "sortOrder": 13
+    },
+    {
+      "label": "Inbound Property Pressure Kpa",
+      "type": "number",
+      "required": false,
+      "sortOrder": 14
+    },
+    {
+      "label": "Pressure Test Comments",
+      "type": "textarea",
+      "required": false,
+      "sortOrder": 15
+    },
+    {
+      "label": "Exposed Copper Piping in Home",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "sortOrder": 16
+    },
+    {
+      "label": "Areas Tested",
+      "type": "multi_answer",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Bathroom",
+        "Ensuite",
+        "Toilet",
+        "Kitchen",
+        "Laundry",
+        "Other Areas"
+      ],
+      "required": true,
+      "additionalDetails": "Select each area included in this leak location inspection.",
+      "sortOrder": 17
+    },
+    {
+      "label": "Bathroom Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 18
+    },
+    {
+      "label": "Bathroom Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 19
+    },
+    {
+      "label": "Bathroom Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 20
+    },
+    {
+      "label": "Bathroom Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 21
+    },
+    {
+      "label": "Bathroom Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 22
+    },
+    {
+      "label": "Bathroom Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 23
+    },
+    {
+      "label": "Bathroom Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 24
+    },
+    {
+      "label": "Bathroom Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 25
+    },
+    {
+      "label": "Bathroom Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 26
+    },
+    {
+      "label": "Bathroom Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 27
+    },
+    {
+      "label": "Bathroom Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 28
+    },
+    {
+      "label": "Bathroom Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 29
+    },
+    {
+      "label": "Bathroom Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 30
+    },
+    {
+      "label": "Bathroom Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 31
+    },
+    {
+      "label": "Bathroom Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 32
+    },
+    {
+      "label": "Bathroom Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 33
+    },
+    {
+      "label": "Bathroom Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        }
+      ],
+      "additionalDetails": "Upload photos for bathroom testing.",
+      "sortOrder": 34
+    },
+    {
+      "label": "Ensuite Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 35
+    },
+    {
+      "label": "Ensuite Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 36
+    },
+    {
+      "label": "Ensuite Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 37
+    },
+    {
+      "label": "Ensuite Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 38
+    },
+    {
+      "label": "Ensuite Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 39
+    },
+    {
+      "label": "Ensuite Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 40
+    },
+    {
+      "label": "Ensuite Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 41
+    },
+    {
+      "label": "Ensuite Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 42
+    },
+    {
+      "label": "Ensuite Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 43
+    },
+    {
+      "label": "Ensuite Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 44
+    },
+    {
+      "label": "Ensuite Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 45
+    },
+    {
+      "label": "Ensuite Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 46
+    },
+    {
+      "label": "Ensuite Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 47
+    },
+    {
+      "label": "Ensuite Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 48
+    },
+    {
+      "label": "Ensuite Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 49
+    },
+    {
+      "label": "Ensuite Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 50
+    },
+    {
+      "label": "Ensuite Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        }
+      ],
+      "additionalDetails": "Upload photos for ensuite testing.",
+      "sortOrder": 51
+    },
+    {
+      "label": "Toilet Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 52
+    },
+    {
+      "label": "Toilet Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 53
+    },
+    {
+      "label": "Toilet Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 54
+    },
+    {
+      "label": "Toilet Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 55
+    },
+    {
+      "label": "Toilet Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 56
+    },
+    {
+      "label": "Toilet Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 57
+    },
+    {
+      "label": "Toilet Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 58
+    },
+    {
+      "label": "Toilet Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 59
+    },
+    {
+      "label": "Toilet Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 60
+    },
+    {
+      "label": "Toilet Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 61
+    },
+    {
+      "label": "Toilet Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 62
+    },
+    {
+      "label": "Toilet Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 63
+    },
+    {
+      "label": "Toilet Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 64
+    },
+    {
+      "label": "Toilet Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 65
+    },
+    {
+      "label": "Toilet Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 66
+    },
+    {
+      "label": "Toilet Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 67
+    },
+    {
+      "label": "Toilet Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        }
+      ],
+      "additionalDetails": "Upload photos for toilet testing.",
+      "sortOrder": 68
+    },
+    {
+      "label": "Kitchen Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 69
+    },
+    {
+      "label": "Kitchen Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 70
+    },
+    {
+      "label": "Kitchen Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 71
+    },
+    {
+      "label": "Kitchen Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 72
+    },
+    {
+      "label": "Kitchen Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 73
+    },
+    {
+      "label": "Kitchen Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 74
+    },
+    {
+      "label": "Kitchen Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 75
+    },
+    {
+      "label": "Kitchen Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 76
+    },
+    {
+      "label": "Kitchen Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 77
+    },
+    {
+      "label": "Kitchen Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 78
+    },
+    {
+      "label": "Kitchen Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 79
+    },
+    {
+      "label": "Kitchen Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 80
+    },
+    {
+      "label": "Kitchen Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 81
+    },
+    {
+      "label": "Kitchen Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 82
+    },
+    {
+      "label": "Kitchen Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 83
+    },
+    {
+      "label": "Kitchen Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 84
+    },
+    {
+      "label": "Kitchen Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        }
+      ],
+      "additionalDetails": "Upload photos for kitchen testing.",
+      "sortOrder": 85
+    },
+    {
+      "label": "Laundry Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 86
+    },
+    {
+      "label": "Laundry Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 87
+    },
+    {
+      "label": "Laundry Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 88
+    },
+    {
+      "label": "Laundry Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 89
+    },
+    {
+      "label": "Laundry Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 90
+    },
+    {
+      "label": "Laundry Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 91
+    },
+    {
+      "label": "Laundry Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 92
+    },
+    {
+      "label": "Laundry Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 93
+    },
+    {
+      "label": "Laundry Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 94
+    },
+    {
+      "label": "Laundry Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 95
+    },
+    {
+      "label": "Laundry Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 96
+    },
+    {
+      "label": "Laundry Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 97
+    },
+    {
+      "label": "Laundry Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 98
+    },
+    {
+      "label": "Laundry Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 99
+    },
+    {
+      "label": "Laundry Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 100
+    },
+    {
+      "label": "Laundry Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 101
+    },
+    {
+      "label": "Laundry Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        }
+      ],
+      "additionalDetails": "Upload photos for laundry testing.",
+      "sortOrder": 102
+    },
+    {
+      "label": "Other Areas Shower Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 103
+    },
+    {
+      "label": "Other Areas Cold Water Line Pressure",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 104
+    },
+    {
+      "label": "Other Areas Hot Water Line Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 105
+    },
+    {
+      "label": "Other Areas Fibrous Body Washer Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 106
+    },
+    {
+      "label": "Other Areas Spindle O Ring Leak",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 107
+    },
+    {
+      "label": "Other Areas Silicone Seal Good Condition",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "sortOrder": 108
+    },
+    {
+      "label": "Other Areas Bath Breech Pressure Test",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 109
+    },
+    {
+      "label": "Other Areas Flood Test to Shower Base",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 110
+    },
+    {
+      "label": "Other Areas Spray Test to Shower Wall Tiles",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 111
+    },
+    {
+      "label": "Other Areas Spray Test to Shower Screen",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 112
+    },
+    {
+      "label": "Other Areas Inspection of Shower Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 113
+    },
+    {
+      "label": "Other Areas Inspection of Bath Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 114
+    },
+    {
+      "label": "Other Areas Inspection of Vanity Waste Pipe",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Pass",
+        "Fail",
+        "N/A"
+      ],
+      "sortOrder": 115
+    },
+    {
+      "label": "Other Areas Grouting Condition of Shower Area",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 116
+    },
+    {
+      "label": "Other Areas Condition of Silicone Seal",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Excellent",
+        "Good",
+        "Poor",
+        "Disrepair"
+      ],
+      "sortOrder": 117
+    },
+    {
+      "label": "Other Areas Thermal Imaging Carried Out",
+      "type": "select",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "sortOrder": 118
+    },
+    {
+      "label": "Other Areas Photos",
+      "type": "photo",
+      "required": false,
+      "conditions": [
+        {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        }
+      ],
+      "additionalDetails": "Upload photos for other areas testing.",
+      "sortOrder": 119
+    },
+    {
+      "label": "Cause of Leak Found",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "sortOrder": 120
+    },
+    {
+      "label": "Description of Cause of Leak",
+      "type": "textarea",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Cause of Leak Found",
+          "operator": "EQ",
+          "value": "Yes"
+        }
+      ],
+      "sortOrder": 121
+    },
+    {
+      "label": "Invasive Works Required",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "required": true,
+      "sortOrder": 122
+    },
+    {
+      "label": "Invasive Works Through Dry Side",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No",
+        "N/A"
+      ],
+      "required": false,
+      "sortOrder": 123
+    },
+    {
+      "label": "Describe Invasive Works Carried Out",
+      "type": "textarea",
+      "required": false,
+      "sortOrder": 124
+    },
+    {
+      "label": "Leak Fixed",
+      "type": "select",
+      "docxOutput": "checkboxList",
+      "options": [
+        "Yes",
+        "No"
+      ],
+      "required": true,
+      "sortOrder": 125
+    },
+    {
+      "label": "Work Required to Fix Leak",
+      "type": "textarea",
+      "required": true,
+      "conditions": [
+        {
+          "questionLabel": "Leak Fixed",
+          "operator": "EQ",
+          "value": "No"
+        }
+      ],
+      "sortOrder": 126
+    },
+    {
+      "label": "Damage Caused by Escape of Liquid",
+      "type": "textarea",
+      "required": false,
+      "additionalDetails": "Provide brief dot points only.",
+      "sortOrder": 127
+    },
+    {
+      "label": "Plumbers Observations",
+      "type": "textarea",
+      "required": true,
+      "sortOrder": 128
+    },
+    {
+      "label": "Mud Map Images",
+      "type": "photo",
+      "required": false,
+      "sortOrder": 129
+    },
+    {
+      "label": "Related Images",
+      "type": "photo",
+      "required": false,
+      "additionalDetails": "Upload related still images only. Video is not included in the static PDF output.",
+      "sortOrder": 130
+    }
+  ],
+  "docxContent": {
+    "sections": [
+      {
+        "title": "Report For:",
+        "isStandardHeader": true,
+        "layout": "table",
+        "content": "Property Address: {MERGEFIELD job.job_address_singleline \\* MERGEFORMAT}\nBrand: {MERGEFIELD custom_insurance_brand \\* MERGEFORMAT}\nClaim No.: {MERGEFIELD custom_claim_number \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Prepared By:",
+        "isStandardHeader": true,
+        "layout": "table",
+        "content": "Builder: Ambrose Construct Group Pty Ltd\nAmbrose Job - PO No.: {MERGEFIELD custom_ambrose_job_po_number \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Inspection Details",
+        "layout": "table",
+        "content": "Inspected By: {MERGEFIELD form_inspected_by \\* MERGEFORMAT}\nInspection Date: {MERGEFIELD form_completed_date \\* MERGEFORMAT}\nInspection Time: {MERGEFIELD form_inspection_time \\* MERGEFORMAT}\nInsured Present: {CHECKLIST Insured Present}\nIf Yes - Name: {MERGEFIELD form_insured_name \\* MERGEFORMAT}\nProperty Type: {CHECKLIST Property Type}\nHeight: {CHECKLIST Building Height}\nConstruction: {MERGEFIELD form_construction \\* MERGEFORMAT}\nAge: {MERGEFIELD form_property_age_years \\* MERGEFORMAT}\nCondition of Property on Arrival: {CHECKLIST Condition of Property on Arrival}\nDetails and Circumstances Surrounding Loss: {MERGEFIELD form_details_and_circumstances_surrounding_loss \\* MERGEFORMAT}\nScope of Services Provided: {MERGEFIELD form_scope_of_services_provided \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Client Discussion",
+        "layout": "table",
+        "content": "Client Discussion: {MERGEFIELD form_client_discussion \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Checklist",
+        "layout": "table",
+        "content": "Pressure Test: {CHECKLIST Pressure Test}\nInbound Property Pressure measured in Kpa: {MERGEFIELD form_inbound_property_pressure_kpa \\* MERGEFORMAT}\nPressure Test Comments: {MERGEFIELD form_pressure_test_comments \\* MERGEFORMAT}\nIs there any exposed copper piping in the home: {CHECKLIST Exposed Copper Piping in Home}\nAreas Tested: {CHECKLIST Areas Tested}"
+      },
+      {
+        "title": "Bathroom Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Bathroom"
+        },
+        "content": "Bathroom Shower Breech Pressure Test: {CHECKLIST Bathroom Shower Breech Pressure Test}\nBathroom Cold Water Line Pressure: {CHECKLIST Bathroom Cold Water Line Pressure}\nBathroom Hot Water Line Pressure Test: {CHECKLIST Bathroom Hot Water Line Pressure Test}\nBathroom Fibrous Body Washer Leak: {CHECKLIST Bathroom Fibrous Body Washer Leak}\nBathroom Spindle O Ring Leak: {CHECKLIST Bathroom Spindle O Ring Leak}\nBathroom Silicone Seal Good Condition: {CHECKLIST Bathroom Silicone Seal Good Condition}\nBathroom Bath Breech Pressure Test: {CHECKLIST Bathroom Bath Breech Pressure Test}\nBathroom Flood Test to Shower Base: {CHECKLIST Bathroom Flood Test to Shower Base}\nBathroom Spray Test to Shower Wall Tiles: {CHECKLIST Bathroom Spray Test to Shower Wall Tiles}\nBathroom Spray Test to Shower Screen: {CHECKLIST Bathroom Spray Test to Shower Screen}\nBathroom Inspection of Shower Waste Pipe: {CHECKLIST Bathroom Inspection of Shower Waste Pipe}\nBathroom Inspection of Bath Waste Pipe: {CHECKLIST Bathroom Inspection of Bath Waste Pipe}\nBathroom Inspection of Vanity Waste Pipe: {CHECKLIST Bathroom Inspection of Vanity Waste Pipe}\nBathroom Grouting Condition of Shower Area: {CHECKLIST Bathroom Grouting Condition of Shower Area}\nBathroom Condition of Silicone Seal: {CHECKLIST Bathroom Condition of Silicone Seal}\nBathroom Thermal Imaging Carried Out: {CHECKLIST Bathroom Thermal Imaging Carried Out}\nBathroom Photos: {MERGEFIELD image_form_bathroom_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Ensuite Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Ensuite"
+        },
+        "content": "Ensuite Shower Breech Pressure Test: {CHECKLIST Ensuite Shower Breech Pressure Test}\nEnsuite Cold Water Line Pressure: {CHECKLIST Ensuite Cold Water Line Pressure}\nEnsuite Hot Water Line Pressure Test: {CHECKLIST Ensuite Hot Water Line Pressure Test}\nEnsuite Fibrous Body Washer Leak: {CHECKLIST Ensuite Fibrous Body Washer Leak}\nEnsuite Spindle O Ring Leak: {CHECKLIST Ensuite Spindle O Ring Leak}\nEnsuite Silicone Seal Good Condition: {CHECKLIST Ensuite Silicone Seal Good Condition}\nEnsuite Bath Breech Pressure Test: {CHECKLIST Ensuite Bath Breech Pressure Test}\nEnsuite Flood Test to Shower Base: {CHECKLIST Ensuite Flood Test to Shower Base}\nEnsuite Spray Test to Shower Wall Tiles: {CHECKLIST Ensuite Spray Test to Shower Wall Tiles}\nEnsuite Spray Test to Shower Screen: {CHECKLIST Ensuite Spray Test to Shower Screen}\nEnsuite Inspection of Shower Waste Pipe: {CHECKLIST Ensuite Inspection of Shower Waste Pipe}\nEnsuite Inspection of Bath Waste Pipe: {CHECKLIST Ensuite Inspection of Bath Waste Pipe}\nEnsuite Inspection of Vanity Waste Pipe: {CHECKLIST Ensuite Inspection of Vanity Waste Pipe}\nEnsuite Grouting Condition of Shower Area: {CHECKLIST Ensuite Grouting Condition of Shower Area}\nEnsuite Condition of Silicone Seal: {CHECKLIST Ensuite Condition of Silicone Seal}\nEnsuite Thermal Imaging Carried Out: {CHECKLIST Ensuite Thermal Imaging Carried Out}\nEnsuite Photos: {MERGEFIELD image_form_ensuite_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Toilet Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Toilet"
+        },
+        "content": "Toilet Shower Breech Pressure Test: {CHECKLIST Toilet Shower Breech Pressure Test}\nToilet Cold Water Line Pressure: {CHECKLIST Toilet Cold Water Line Pressure}\nToilet Hot Water Line Pressure Test: {CHECKLIST Toilet Hot Water Line Pressure Test}\nToilet Fibrous Body Washer Leak: {CHECKLIST Toilet Fibrous Body Washer Leak}\nToilet Spindle O Ring Leak: {CHECKLIST Toilet Spindle O Ring Leak}\nToilet Silicone Seal Good Condition: {CHECKLIST Toilet Silicone Seal Good Condition}\nToilet Bath Breech Pressure Test: {CHECKLIST Toilet Bath Breech Pressure Test}\nToilet Flood Test to Shower Base: {CHECKLIST Toilet Flood Test to Shower Base}\nToilet Spray Test to Shower Wall Tiles: {CHECKLIST Toilet Spray Test to Shower Wall Tiles}\nToilet Spray Test to Shower Screen: {CHECKLIST Toilet Spray Test to Shower Screen}\nToilet Inspection of Shower Waste Pipe: {CHECKLIST Toilet Inspection of Shower Waste Pipe}\nToilet Inspection of Bath Waste Pipe: {CHECKLIST Toilet Inspection of Bath Waste Pipe}\nToilet Inspection of Vanity Waste Pipe: {CHECKLIST Toilet Inspection of Vanity Waste Pipe}\nToilet Grouting Condition of Shower Area: {CHECKLIST Toilet Grouting Condition of Shower Area}\nToilet Condition of Silicone Seal: {CHECKLIST Toilet Condition of Silicone Seal}\nToilet Thermal Imaging Carried Out: {CHECKLIST Toilet Thermal Imaging Carried Out}\nToilet Photos: {MERGEFIELD image_form_toilet_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Kitchen Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Kitchen"
+        },
+        "content": "Kitchen Shower Breech Pressure Test: {CHECKLIST Kitchen Shower Breech Pressure Test}\nKitchen Cold Water Line Pressure: {CHECKLIST Kitchen Cold Water Line Pressure}\nKitchen Hot Water Line Pressure Test: {CHECKLIST Kitchen Hot Water Line Pressure Test}\nKitchen Fibrous Body Washer Leak: {CHECKLIST Kitchen Fibrous Body Washer Leak}\nKitchen Spindle O Ring Leak: {CHECKLIST Kitchen Spindle O Ring Leak}\nKitchen Silicone Seal Good Condition: {CHECKLIST Kitchen Silicone Seal Good Condition}\nKitchen Bath Breech Pressure Test: {CHECKLIST Kitchen Bath Breech Pressure Test}\nKitchen Flood Test to Shower Base: {CHECKLIST Kitchen Flood Test to Shower Base}\nKitchen Spray Test to Shower Wall Tiles: {CHECKLIST Kitchen Spray Test to Shower Wall Tiles}\nKitchen Spray Test to Shower Screen: {CHECKLIST Kitchen Spray Test to Shower Screen}\nKitchen Inspection of Shower Waste Pipe: {CHECKLIST Kitchen Inspection of Shower Waste Pipe}\nKitchen Inspection of Bath Waste Pipe: {CHECKLIST Kitchen Inspection of Bath Waste Pipe}\nKitchen Inspection of Vanity Waste Pipe: {CHECKLIST Kitchen Inspection of Vanity Waste Pipe}\nKitchen Grouting Condition of Shower Area: {CHECKLIST Kitchen Grouting Condition of Shower Area}\nKitchen Condition of Silicone Seal: {CHECKLIST Kitchen Condition of Silicone Seal}\nKitchen Thermal Imaging Carried Out: {CHECKLIST Kitchen Thermal Imaging Carried Out}\nKitchen Photos: {MERGEFIELD image_form_kitchen_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Laundry Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Laundry"
+        },
+        "content": "Laundry Shower Breech Pressure Test: {CHECKLIST Laundry Shower Breech Pressure Test}\nLaundry Cold Water Line Pressure: {CHECKLIST Laundry Cold Water Line Pressure}\nLaundry Hot Water Line Pressure Test: {CHECKLIST Laundry Hot Water Line Pressure Test}\nLaundry Fibrous Body Washer Leak: {CHECKLIST Laundry Fibrous Body Washer Leak}\nLaundry Spindle O Ring Leak: {CHECKLIST Laundry Spindle O Ring Leak}\nLaundry Silicone Seal Good Condition: {CHECKLIST Laundry Silicone Seal Good Condition}\nLaundry Bath Breech Pressure Test: {CHECKLIST Laundry Bath Breech Pressure Test}\nLaundry Flood Test to Shower Base: {CHECKLIST Laundry Flood Test to Shower Base}\nLaundry Spray Test to Shower Wall Tiles: {CHECKLIST Laundry Spray Test to Shower Wall Tiles}\nLaundry Spray Test to Shower Screen: {CHECKLIST Laundry Spray Test to Shower Screen}\nLaundry Inspection of Shower Waste Pipe: {CHECKLIST Laundry Inspection of Shower Waste Pipe}\nLaundry Inspection of Bath Waste Pipe: {CHECKLIST Laundry Inspection of Bath Waste Pipe}\nLaundry Inspection of Vanity Waste Pipe: {CHECKLIST Laundry Inspection of Vanity Waste Pipe}\nLaundry Grouting Condition of Shower Area: {CHECKLIST Laundry Grouting Condition of Shower Area}\nLaundry Condition of Silicone Seal: {CHECKLIST Laundry Condition of Silicone Seal}\nLaundry Thermal Imaging Carried Out: {CHECKLIST Laundry Thermal Imaging Carried Out}\nLaundry Photos: {MERGEFIELD image_form_laundry_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Other Areas Testing",
+        "layout": "table",
+        "displayWhen": {
+          "questionLabel": "Areas Tested",
+          "operator": "EQ",
+          "value": "Other Areas"
+        },
+        "content": "Other Areas Shower Breech Pressure Test: {CHECKLIST Other Areas Shower Breech Pressure Test}\nOther Areas Cold Water Line Pressure: {CHECKLIST Other Areas Cold Water Line Pressure}\nOther Areas Hot Water Line Pressure Test: {CHECKLIST Other Areas Hot Water Line Pressure Test}\nOther Areas Fibrous Body Washer Leak: {CHECKLIST Other Areas Fibrous Body Washer Leak}\nOther Areas Spindle O Ring Leak: {CHECKLIST Other Areas Spindle O Ring Leak}\nOther Areas Silicone Seal Good Condition: {CHECKLIST Other Areas Silicone Seal Good Condition}\nOther Areas Bath Breech Pressure Test: {CHECKLIST Other Areas Bath Breech Pressure Test}\nOther Areas Flood Test to Shower Base: {CHECKLIST Other Areas Flood Test to Shower Base}\nOther Areas Spray Test to Shower Wall Tiles: {CHECKLIST Other Areas Spray Test to Shower Wall Tiles}\nOther Areas Spray Test to Shower Screen: {CHECKLIST Other Areas Spray Test to Shower Screen}\nOther Areas Inspection of Shower Waste Pipe: {CHECKLIST Other Areas Inspection of Shower Waste Pipe}\nOther Areas Inspection of Bath Waste Pipe: {CHECKLIST Other Areas Inspection of Bath Waste Pipe}\nOther Areas Inspection of Vanity Waste Pipe: {CHECKLIST Other Areas Inspection of Vanity Waste Pipe}\nOther Areas Grouting Condition of Shower Area: {CHECKLIST Other Areas Grouting Condition of Shower Area}\nOther Areas Condition of Silicone Seal: {CHECKLIST Other Areas Condition of Silicone Seal}\nOther Areas Thermal Imaging Carried Out: {CHECKLIST Other Areas Thermal Imaging Carried Out}\nOther Areas Photos: {MERGEFIELD image_form_other_areas_photos_medium \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Location / Cause of Leak",
+        "layout": "table",
+        "content": "Was the cause of the leak found: {CHECKLIST Cause of Leak Found}\nDescription of the Cause of the Leak: {MERGEFIELD form_description_of_cause_of_leak \\* MERGEFORMAT}\nAre Invasive Works Required: {CHECKLIST Invasive Works Required}\nCould Invasive Works be Carried Out Through the Dry Side of the Wall: {CHECKLIST Invasive Works Through Dry Side}\nDescribe Invasive Works Carried Out to Locate the Cause of Leak: {MERGEFIELD form_describe_invasive_works_carried_out \\* MERGEFORMAT}\nHas the Leak Been Fixed: {CHECKLIST Leak Fixed}\nWork Required to Fix the Leak: {MERGEFIELD form_work_required_to_fix_leak \\* MERGEFORMAT}\nBrief Detail of Damage Caused by Escape of Liquid: {MERGEFIELD form_damage_caused_by_escape_of_liquid \\* MERGEFORMAT}\nPlumbers Observations: {MERGEFIELD form_plumbers_observations \\* MERGEFORMAT}"
+      },
+      {
+        "title": "Images",
+        "layout": "table",
+        "content": "Mud Map Images: {MERGEFIELD image_form_mud_map_images_medium \\* MERGEFORMAT}\nRelated Images: {MERGEFIELD image_form_related_images_medium \\* MERGEFORMAT}"
+      }
+    ],
+    "style": "sourcePdfReplica",
+    "logoPath": "C:/Users/MichaelKnight/Documents/Servicem8 Forms/uploaded-reference/assets/ambrose-logo.png"
+  }
+}
