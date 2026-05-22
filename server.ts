@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import fs from "node:fs/promises";
 import os from "node:os";
 import { spawn } from "node:child_process";
+import { randomUUID } from "node:crypto";
 
 dotenv.config();
 
@@ -14,6 +15,7 @@ const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const CODEX_BRIDGE_DIR = process.env.CODEX_BRIDGE_DIR || (process.platform === "win32" ? "C:\\tmp\\autoform-codex-bridge" : path.join(os.tmpdir(), "autoform-codex-bridge"));
 
 app.use(express.json({ limit: "30mb" }));
 app.use(cookieParser());
@@ -222,6 +224,39 @@ function codexHandoffBrief(body: any) {
   ].join("\n");
 }
 
+async function writeCodexBridgeRequest(body: any) {
+  const requestId = randomUUID();
+  const requestsDir = path.join(CODEX_BRIDGE_DIR, "requests");
+  const responsesDir = path.join(CODEX_BRIDGE_DIR, "responses");
+  await fs.mkdir(requestsDir, { recursive: true });
+  await fs.mkdir(responsesDir, { recursive: true });
+
+  const brief = codexHandoffBrief(body);
+  const requestPath = path.join(requestsDir, `${requestId}.md`);
+  const responsePath = path.join(responsesDir, `${requestId}.json`);
+  const payload = [
+    brief,
+    "",
+    "Response file expected at:",
+    responsePath,
+    "",
+    "Response format:",
+    "{",
+    '  "summary": "...",',
+    '  "assumptions": [],',
+    '  "clarificationQuestions": [],',
+    '  "designNotes": [],',
+    '  "nextSteps": [],',
+    '  "spec": { "title": "...", "badgeName": "...", "description": "...", "fields": [], "docxContent": { "sections": [] } }',
+    "}",
+  ].join("\n");
+
+  await fs.writeFile(requestPath, payload, "utf8");
+  await fs.writeFile(path.join(CODEX_BRIDGE_DIR, "latest-request.md"), payload, "utf8");
+
+  return { requestId, brief: payload, requestPath, responsePath };
+}
+
 function openAiInstructions(mode: string) {
   return `You are Autoform, an expert ServiceM8 .sm8f form designer. Build structured ServiceM8 form specs from user scopes and uploaded reference files.
 Mode: ${mode}.
@@ -251,9 +286,13 @@ function attachmentPlanningContext(attachments: any[] = []) {
 
 async function callOpenAiPlan(body: any, revision = false) {
   if (!process.env.OPENAI_API_KEY) {
+    const bridge = await writeCodexBridgeRequest(body);
     const error = new Error("Codex local mode is active. The web app will not generate test AI fields without OPENAI_API_KEY.");
     (error as any).statusCode = 409;
-    (error as any).codexBrief = codexHandoffBrief(body);
+    (error as any).codexBrief = bridge.brief;
+    (error as any).requestId = bridge.requestId;
+    (error as any).requestPath = bridge.requestPath;
+    (error as any).responsePath = bridge.responsePath;
     throw error;
   }
 
@@ -313,6 +352,9 @@ app.post("/api/ai/form-plan", async (req, res) => {
     res.status(error.statusCode || 500).json({
       error: error.message || "Failed to generate form plan",
       codexBrief: error.codexBrief,
+      requestId: error.requestId,
+      requestPath: error.requestPath,
+      responsePath: error.responsePath,
     });
   }
 });
@@ -324,6 +366,9 @@ app.post("/api/ai/revise-plan", async (req, res) => {
     res.status(error.statusCode || 500).json({
       error: error.message || "Failed to revise form plan",
       codexBrief: error.codexBrief,
+      requestId: error.requestId,
+      requestPath: error.requestPath,
+      responsePath: error.responsePath,
     });
   }
 });
@@ -331,6 +376,23 @@ app.post("/api/ai/revise-plan", async (req, res) => {
 app.get("/api/ai/status", (_req, res) => {
   const hasOpenAiKey = !!process.env.OPENAI_API_KEY;
   res.json({ hasOpenAiKey, mode: hasOpenAiKey ? "openai" : "codex_handoff" });
+});
+
+app.get("/api/codex/response/:requestId", async (req, res) => {
+  try {
+    const requestId = String(req.params.requestId || "").replace(/[^a-f0-9-]/gi, "");
+    if (!requestId) return res.status(400).json({ error: "Missing request id" });
+
+    const responsePath = path.join(CODEX_BRIDGE_DIR, "responses", `${requestId}.json`);
+    const raw = await fs.readFile(responsePath, "utf8");
+    res.json(JSON.parse(raw));
+  } catch (error: any) {
+    if (error.code === "ENOENT") {
+      res.status(404).json({ error: "Codex response is not ready yet" });
+    } else {
+      res.status(500).json({ error: error.message || "Failed to load Codex response" });
+    }
+  }
 });
 
 function runNodeScript(scriptPath: string, args: string[]) {

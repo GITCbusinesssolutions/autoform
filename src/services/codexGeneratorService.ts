@@ -17,6 +17,11 @@ export async function getAiStatus(): Promise<{ hasOpenAiKey: boolean; mode: "ope
   return readJson(response);
 }
 
+export async function loadCodexResponse(requestId: string): Promise<AiPlanResponse> {
+  const response = await fetch(`/api/codex/response/${encodeURIComponent(requestId)}`);
+  return readJson<AiPlanResponse>(response);
+}
+
 export async function requestFormPlan(input: {
   prompt: string;
   mode: ToolMode;

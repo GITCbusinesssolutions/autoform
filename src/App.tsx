@@ -29,6 +29,7 @@ import {
   buildSm8f,
   checkAdminAccess,
   getAiStatus,
+  loadCodexResponse,
   requestFormPlan,
   reviseFormPlan,
 } from "./services/codexGeneratorService";
@@ -246,16 +247,37 @@ export default function App() {
         const assistantMessage: ChatMessage = {
           id: uid("msg"),
           role: "assistant",
-          content: `${err.message}\n\nUse this brief in this Codex chat, then paste the approved FormSpec JSON back into the app when generated:\n\n${err.codexBrief}`,
+          content: `${err.message}\n\nA local bridge request has been written for Codex.\nRequest: ${err.requestPath || "not available"}\nResponse target: ${err.responsePath || "not available"}\n\n${err.codexBrief}`,
           timestamp: new Date().toISOString(),
         };
-        updateProject({ messages: [...baseMessages, assistantMessage], state: "needsClarification" });
+        updateProject({
+          messages: [...baseMessages, assistantMessage],
+          state: "needsClarification",
+          codexRequestId: err.requestId,
+          codexRequestPath: err.requestPath,
+          codexResponsePath: err.responsePath,
+        });
         setPrompt("");
         setAttachments([]);
       } else {
         setError(err.message || "AI generation failed.");
         updateProject({ state: "error" });
       }
+    } finally {
+      setIsWorking(false);
+    }
+  };
+
+  const handleLoadCodexResponse = async () => {
+    if (!project.codexRequestId) return;
+    setIsWorking(true);
+    setError("");
+    try {
+      const plan = await loadCodexResponse(project.codexRequestId);
+      applyPlan(plan, project.messages, "draft");
+      updateProject({ codexRequestId: undefined, codexRequestPath: undefined, codexResponsePath: undefined });
+    } catch (err: any) {
+      setError(err.message || "Codex response is not ready yet.");
     } finally {
       setIsWorking(false);
     }
@@ -403,6 +425,7 @@ export default function App() {
             setAttachments={setAttachments}
             onFiles={handleFiles}
             onGenerate={handleGenerate}
+            onLoadCodexResponse={handleLoadCodexResponse}
             onBuild={handleBuild}
             isWorking={isWorking}
             hasOpenAiKey={hasOpenAiKey}
@@ -452,6 +475,7 @@ function Workspace(props: {
   setAttachments: React.Dispatch<React.SetStateAction<AttachmentPayload[]>>;
   onFiles: (files: FileList | null) => void;
   onGenerate: () => void;
+  onLoadCodexResponse: () => void;
   onBuild: () => void;
   isWorking: boolean;
   hasOpenAiKey: boolean;
@@ -464,8 +488,16 @@ function Workspace(props: {
       <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[calc(100vh-7rem)] flex flex-col">
         <PanelTitle icon={MessageSquareText} title="AI chat" subtitle="Describe, revise, approve" />
         {!props.hasOpenAiKey && (
-          <div className="mx-4 mt-4 rounded-[8px] border border-lime-200 bg-lime-50 p-3 text-sm text-zinc-700">
-            Codex local mode is active. This app will prepare a handoff brief instead of generating fake AI fields.
+          <div className="mx-4 mt-4 rounded-[8px] border border-lime-200 bg-lime-50 p-3 text-sm text-zinc-700 space-y-2">
+            <p>Codex local bridge is active. This app writes request files for Codex instead of generating fake AI fields.</p>
+            {props.project.codexRequestId && (
+              <div className="space-y-2">
+                <p className="font-mono text-xs break-all">Response: {props.project.codexResponsePath}</p>
+                <button onClick={props.onLoadCodexResponse} disabled={props.isWorking} className="rounded-[8px] bg-zinc-950 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">
+                  Load Codex response
+                </button>
+              </div>
+            )}
           </div>
         )}
         <div className="flex-1 overflow-auto px-4 space-y-4">

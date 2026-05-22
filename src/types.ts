@@ -95,6 +95,9 @@ export interface ProjectRecord {
   spec: FormSpec | null;
   state: GenerationState;
   designSettings: DesignSettings;
+  codexRequestId?: string;
+  codexRequestPath?: string;
+  codexResponsePath?: string;
 }
 
 export type GeneratedForm = FormSpec;
