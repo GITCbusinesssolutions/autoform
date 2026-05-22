@@ -4,5 +4,9 @@ dist/
 coverage/
 .DS_Store
 *.log
+*.err
 .env*
 !.env.example
+*.sm8f
+*.zip
+tmp-*
