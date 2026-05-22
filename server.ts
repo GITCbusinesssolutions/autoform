@@ -266,6 +266,14 @@ async function callOpenAiPlan(body: any, revision = false) {
   const fileText = attachmentPlanningContext(body.attachments || []);
   const currentSpec = revision ? `Current spec:\n${JSON.stringify(body.currentSpec, null, 2)}` : "";
   const input = `${openAiInstructions(body.mode || "create_sm8f")}\n\nUser request:\n${body.prompt || ""}\n\n${fileText}\n\nDesign settings:\n${JSON.stringify(body.designSettings || {}, null, 2)}\n\n${currentSpec}`;
+  const fileInputs = (body.attachments || [])
+    .filter((file: any) => file.data && /pdf|officedocument|msword|text|csv|json|image/i.test(`${file.mimeType} ${file.name}`))
+    .slice(0, 5)
+    .map((file: any) => ({
+      type: "input_file",
+      filename: file.name,
+      file_data: `data:${file.mimeType || "application/octet-stream"};base64,${file.data}`,
+    }));
 
   const response = await fetch("https://api.openai.com/v1/responses", {
     method: "POST",
@@ -275,7 +283,15 @@ async function callOpenAiPlan(body: any, revision = false) {
     },
     body: JSON.stringify({
       model: OPENAI_MODEL,
-      input,
+      input: [
+        {
+          role: "user",
+          content: [
+            { type: "input_text", text: input },
+            ...fileInputs,
+          ],
+        },
+      ],
       text: {
         format: {
           type: "json_schema",
