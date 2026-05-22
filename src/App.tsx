@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
   Bot,
   Box,
@@ -28,6 +28,7 @@ import { saveAs } from "file-saver";
 import {
   buildSm8f,
   checkAdminAccess,
+  getAiStatus,
   requestFormPlan,
   reviseFormPlan,
 } from "./services/codexGeneratorService";
@@ -69,6 +70,7 @@ const defaultDesign: DesignSettings = {
   headerText: "Generated ServiceM8 Form",
   footerText: "Commercial-in-confidence",
 };
+const STORAGE_KEY = "autoform_projects_v3";
 
 const starterSpec: FormSpec = {
   title: "Untitled ServiceM8 Form",
@@ -97,7 +99,7 @@ function emptyProject(mode: ToolMode = "create_sm8f"): ProjectRecord {
       {
         id: uid("msg"),
         role: "assistant",
-        content: "Tell me what ServiceM8 asset you need, upload any reference files, and I will draft the form plan before building the SM8F.",
+        content: "Tell me what ServiceM8 asset you need and upload any reference files. In local Codex mode I will prepare a handoff brief; with backend AI configured I will draft the form plan here.",
         timestamp: new Date().toISOString(),
       },
     ],
@@ -109,7 +111,7 @@ function emptyProject(mode: ToolMode = "create_sm8f"): ProjectRecord {
 
 function loadProjects(): ProjectRecord[] {
   try {
-    const raw = localStorage.getItem("autoform_projects_v1");
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [emptyProject()];
     const parsed = JSON.parse(raw) as ProjectRecord[];
     return parsed.length ? parsed : [emptyProject()];
@@ -149,6 +151,7 @@ export default function App() {
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<AttachmentPayload[]>([]);
   const [isWorking, setIsWorking] = useState(false);
+  const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
   const [accessGranted, setAccessGranted] = useState(() => localStorage.getItem("autoform_access") === "ok");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -158,8 +161,14 @@ export default function App() {
 
   const persist = (next: ProjectRecord[]) => {
     setProjects(next);
-    localStorage.setItem("autoform_projects_v1", JSON.stringify(next));
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
   };
+
+  useEffect(() => {
+    getAiStatus()
+      .then((status) => setHasOpenAiKey(status.hasOpenAiKey))
+      .catch(() => setHasOpenAiKey(false));
+  }, []);
 
   const updateProject = (patch: Partial<ProjectRecord>) => {
     const next = projects.map((item) =>
@@ -233,8 +242,20 @@ export default function App() {
       setPrompt("");
       setAttachments([]);
     } catch (err: any) {
-      setError(err.message || "AI generation failed.");
-      updateProject({ state: "error" });
+      if (err.codexBrief) {
+        const assistantMessage: ChatMessage = {
+          id: uid("msg"),
+          role: "assistant",
+          content: `${err.message}\n\nUse this brief in this Codex chat, then paste the approved FormSpec JSON back into the app when generated:\n\n${err.codexBrief}`,
+          timestamp: new Date().toISOString(),
+        };
+        updateProject({ messages: [...baseMessages, assistantMessage], state: "needsClarification" });
+        setPrompt("");
+        setAttachments([]);
+      } else {
+        setError(err.message || "AI generation failed.");
+        updateProject({ state: "error" });
+      }
     } finally {
       setIsWorking(false);
     }
@@ -384,6 +405,7 @@ export default function App() {
             onGenerate={handleGenerate}
             onBuild={handleBuild}
             isWorking={isWorking}
+            hasOpenAiKey={hasOpenAiKey}
             error={error}
             updateSpec={updateSpec}
             fieldCounts={fieldCounts}
@@ -432,6 +454,7 @@ function Workspace(props: {
   onGenerate: () => void;
   onBuild: () => void;
   isWorking: boolean;
+  hasOpenAiKey: boolean;
   error: string;
   updateSpec: (spec: FormSpec) => void;
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
@@ -440,6 +463,11 @@ function Workspace(props: {
     <div className="grid grid-cols-1 xl:grid-cols-[minmax(360px,0.9fr)_minmax(560px,1.4fr)_360px] gap-5 p-4 lg:p-6">
       <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[calc(100vh-7rem)] flex flex-col">
         <PanelTitle icon={MessageSquareText} title="AI chat" subtitle="Describe, revise, approve" />
+        {!props.hasOpenAiKey && (
+          <div className="mx-4 mt-4 rounded-[8px] border border-lime-200 bg-lime-50 p-3 text-sm text-zinc-700">
+            Codex local mode is active. This app will prepare a handoff brief instead of generating fake AI fields.
+          </div>
+        )}
         <div className="flex-1 overflow-auto px-4 space-y-4">
           {props.project.messages.map((message) => (
             <div key={message.id} className={cn("rounded-[8px] p-4 text-sm whitespace-pre-wrap", message.role === "user" ? "bg-zinc-950 text-white" : "bg-[#f4f5ef] text-zinc-800")}>
@@ -481,7 +509,7 @@ function Workspace(props: {
               <input className="hidden" type="file" multiple accept=".pdf,.docx,.sm8f,.json,.png,.jpg,.jpeg,.txt,.md" onChange={(event) => props.onFiles(event.target.files)} />
             </label>
             <button onClick={props.onGenerate} disabled={props.isWorking || (!props.prompt.trim() && !props.attachments.length)} className="flex-1 bg-lime-300 text-zinc-950 rounded-[8px] px-4 py-2 text-sm font-semibold disabled:opacity-50">
-              {props.isWorking ? "Working..." : props.spec.fields.length ? "Revise plan" : "Generate plan"}
+              {props.isWorking ? "Working..." : props.hasOpenAiKey ? (props.spec.fields.length ? "Revise plan" : "Generate plan") : "Prepare Codex brief"}
             </button>
           </div>
           {props.error && <p className="text-sm text-red-600">{props.error}</p>}

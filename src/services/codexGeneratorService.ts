@@ -5,9 +5,16 @@ export type ReferenceFilePayload = AttachmentPayload;
 async function readJson<T>(response: Response): Promise<T> {
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || data.message || "Request failed");
+    const error = new Error(data.error || data.message || "Request failed") as Error & Record<string, unknown>;
+    Object.assign(error, data);
+    throw error;
   }
   return data as T;
+}
+
+export async function getAiStatus(): Promise<{ hasOpenAiKey: boolean; mode: "openai" | "codex_handoff" }> {
+  const response = await fetch("/api/ai/status");
+  return readJson(response);
 }
 
 export async function requestFormPlan(input: {
