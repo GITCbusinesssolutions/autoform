@@ -51,7 +51,7 @@ import {
 import { cn } from "./lib/utils";
 
 const tools: { id: ToolMode; label: string; icon: React.ElementType; status: string }[] = [
-  { id: "create_from_prompt", label: "Create from Prompt", icon: MessageSquareText, status: "Live" },
+  { id: "create_from_prompt", label: "Create New Form from AI Prompt", icon: MessageSquareText, status: "Live" },
   { id: "create_from_pdf", label: "Create from Existing PDF", icon: FileText, status: "Preview" },
   { id: "update_existing_form", label: "Update Existing Form", icon: ClipboardList, status: "Preview" },
   { id: "swms_builder", label: "SWMS Builder", icon: ShieldAlert, status: "Preview" },
@@ -122,7 +122,10 @@ function loadProjects(): ProjectRecord[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [emptyProject()];
     const parsed = JSON.parse(raw) as ProjectRecord[];
-    return parsed.length ? parsed : [emptyProject()];
+    if (!parsed.length) return [emptyProject()];
+    const promptIndex = parsed.findIndex((item) => item.mode === "create_from_prompt");
+    if (promptIndex <= 0) return parsed;
+    return [parsed[promptIndex], ...parsed.slice(0, promptIndex), ...parsed.slice(promptIndex + 1)];
   } catch {
     return [emptyProject()];
   }
@@ -183,7 +186,8 @@ export default function App() {
       .then((dbProjects) => {
         if (dbProjects.length) {
           setProjects(dbProjects);
-          setActiveProjectId(dbProjects[0].id);
+          const promptProject = dbProjects.find((item) => item.mode === "create_from_prompt");
+          setActiveProjectId((promptProject || dbProjects[0]).id);
           localStorage.setItem(STORAGE_KEY, JSON.stringify(dbProjects));
         }
       })
