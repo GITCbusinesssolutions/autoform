@@ -920,6 +920,7 @@ function SettingsPanel({ hasOpenAiKey, onStatusChange }: { hasOpenAiKey: boolean
             </div>
             {message && <p className="mt-2 text-xs text-zinc-500">{message}</p>}
           </div>
+          <p><Check className="inline mr-2 text-lime-600" size={16} />Locally, Save writes `OPENAI_API_KEY` to the git-ignored `.env` file.</p>
           <p><Check className="inline mr-2 text-lime-600" size={16} />For Vercel, store `OPENAI_API_KEY` in encrypted environment variables.</p>
           <p><Check className="inline mr-2 text-lime-600" size={16} />Set `APP_PASSWORD` for private admin access.</p>
           <p><Sparkles className="inline mr-2 text-blue-600" size={16} />Projects are saved to the local server DB now; Vercel Postgres is the likely production database later.</p>
