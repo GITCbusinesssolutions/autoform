@@ -123,6 +123,31 @@ function cleanLabel(value, fallback = "Field") {
   return cleaned || fallback;
 }
 
+function humanizeFieldLabel(value, fallback = "Field") {
+  const raw = String(value || fallback).trim();
+  if (!raw) return fallback;
+  if (/\s/.test(raw) && !raw.includes("_")) return raw;
+
+  const smallWords = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "if", "in", "of", "on", "or", "the", "to", "with"]);
+  const acronyms = new Set(["AC", "BMS", "DB", "ETA", "JSA", "LOTO", "RCD", "SCADA", "SM8F", "SWMS"]);
+  return raw
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ")
+    .map((word, index) => {
+      const upper = word.toUpperCase();
+      const lower = word.toLowerCase();
+      if (index === 0 && upper === "NO") return "No.";
+      if (acronyms.has(upper)) return upper;
+      if (index > 0 && smallWords.has(lower)) return lower;
+      return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
+    })
+    .join(" ");
+}
+
 function slug(value) {
   return cleanLabel(value)
     .toLowerCase()
@@ -400,6 +425,47 @@ function conditionalSectionEndParagraph(section, fieldsByLabel, runOptions) {
 function normalizeSpec(spec) {
   const title = cleanLabel(spec.title || spec.name || "Generated ServiceM8 Form", "Generated ServiceM8 Form");
   const fields = Array.isArray(spec.fields) ? spec.fields : [];
+  const labelMap = new Map();
+  const normalizedFields = fields.map((field, index) => {
+    const originalLabel = String(field.label || field.name || `Field ${index + 1}`);
+    const label = cleanLabel(humanizeFieldLabel(originalLabel, `Field ${index + 1}`));
+    labelMap.set(originalLabel, label);
+    labelMap.set(originalLabel.replace(/\s+/g, ""), label);
+    return {
+      ...field,
+      uuid: field.uuid || crypto.randomUUID(),
+      label,
+      sortOrder: String(field.sortOrder || field.sort_order || index + 1),
+      required: !!field.required,
+      additionalDetails: String(field.additionalDetails || ""),
+      options: Array.isArray(field.options) ? field.options.map((option) => String(option || "").trim()).filter(Boolean) : undefined,
+    };
+  });
+  const normalizeCondition = (condition = {}) => ({
+    ...condition,
+    questionLabel: labelMap.get(condition.questionLabel) || humanizeFieldLabel(condition.questionLabel || ""),
+  });
+  const replaceLabels = (content = "") => {
+    let next = String(content || "");
+    for (const [from, to] of labelMap.entries()) {
+      if (!from || from === to) continue;
+      next = next.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), to);
+    }
+    return next;
+  };
+  const docxContent = spec.docxContent || {};
+  const normalizedSections = Array.isArray(docxContent.sections)
+    ? docxContent.sections.map((section) => ({
+      ...section,
+      content: replaceLabels(section.content || ""),
+      displayWhen: Array.isArray(section.displayWhen)
+        ? section.displayWhen.map(normalizeCondition)
+        : section.displayWhen
+          ? normalizeCondition(section.displayWhen)
+          : section.displayWhen,
+    }))
+    : [];
+
   return {
     title,
     badgeName: badgeName(spec.badgeName || spec.badge_name, title),
@@ -407,16 +473,11 @@ function normalizeSpec(spec) {
     badgeMandatoryState: String(spec.badgeMandatoryState || spec.badge_mandatory_state || "2"),
     canBeUsedIndependently: String(spec.canBeUsedIndependently || spec.can_be_used_independently || "0"),
     templateFields: Array.isArray(spec.templateFields) ? spec.templateFields : [],
-    fields: fields.map((field, index) => ({
+    fields: normalizedFields.map((field) => ({
       ...field,
-      uuid: field.uuid || crypto.randomUUID(),
-      label: cleanLabel(field.label || field.name || `Field ${index + 1}`),
-      sortOrder: String(field.sortOrder || field.sort_order || index + 1),
-      required: !!field.required,
-      additionalDetails: String(field.additionalDetails || ""),
-      options: Array.isArray(field.options) ? field.options.map((option) => String(option || "").trim()).filter(Boolean) : undefined,
+      conditions: Array.isArray(field.conditions) ? field.conditions.map(normalizeCondition) : field.conditions,
     })),
-    docxContent: spec.docxContent || {},
+    docxContent: { ...docxContent, sections: normalizedSections },
     designSettings: spec.designSettings || {},
   };
 }

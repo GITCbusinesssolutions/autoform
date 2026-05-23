@@ -324,7 +324,7 @@ function codexHandoffBrief(body: any) {
     "Design settings:",
     JSON.stringify(body.designSettings || {}, null, 2),
     "",
-    "Codex should reply with a plan first, ask clarification questions where needed, list the proposed ServiceM8 questions/sections/logic for user review, then produce/import a FormSpec JSON for this app to build into .sm8f. Include designSettings in the FormSpec. If aiChooseDesign is true, choose suitable colours, typography, heading/table style and report treatment from the user design brief.",
+    "Codex should reply with a plan first, ask clarification questions where needed, list the proposed ServiceM8 questions/sections/logic for user review, then produce/import a FormSpec JSON for this app to build into .sm8f. Field labels must be human-readable question names with spaces, for example \"No. of Technicians on Site\", not CamelCase/PascalCase names like \"NoOfTechniciansOnSite\". Merge fields are generated separately by the builder in snake_case, for example form_no_of_technicians_on_site. Include designSettings in the FormSpec. If aiChooseDesign is true, choose suitable colours, typography, heading/table style and report treatment from the user design brief.",
   ].join("\n");
 }
 
@@ -364,7 +364,7 @@ async function writeCodexBridgeRequest(body: any) {
 function openAiInstructions(mode: string) {
   return `You are Autoform, an expert ServiceM8 .sm8f form designer. Build structured ServiceM8 form specs from user scopes and uploaded reference files.
 Mode: ${mode}.
-For create_from_prompt, build from the user's written scope first and return the proposed questions, sections, answer types, required flags, and conditional logic for review. Return a practical draft users can edit. Use clean alphanumeric field labels. Badge names must be 11 chars or less. Prefer existing ServiceM8/job merge fields for admin data. For multi-answer driven display logic, write display conditions as EQ/CON in the spec; the builder will invert multi-answer skip logic to NCON. DOCX sections should use editable table layout unless the user asks otherwise. Include designSettings in the spec. If aiChooseDesign is true, choose design elements that suit the trade/compliance context and explain the choices in designNotes.`;
+For create_from_prompt, build from the user's written scope first and return the proposed questions, sections, answer types, required flags, and conditional logic for review. Return a practical draft users can edit. Use human-readable field labels with spaces, for example "No. of Technicians on Site"; do not use CamelCase, PascalCase, snake_case, or merge-field names as question labels. Merge fields are derived separately by the builder as snake_case names, for example form_no_of_technicians_on_site. Badge names must be 11 chars or less. Prefer existing ServiceM8/job merge fields for admin data. For multi-answer driven display logic, write display conditions as EQ/CON in the spec; the builder will invert multi-answer skip logic to NCON. DOCX sections should use editable table layout unless the user asks otherwise. Include designSettings in the spec. If aiChooseDesign is true, choose design elements that suit the trade/compliance context and explain the choices in designNotes.`;
 }
 
 function attachmentPlanningContext(attachments: any[] = []) {

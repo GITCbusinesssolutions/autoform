@@ -123,7 +123,10 @@ function loadProjects(): ProjectRecord[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return [emptyProject()];
-    const parsed = JSON.parse(raw) as ProjectRecord[];
+    const parsed = (JSON.parse(raw) as ProjectRecord[]).map((item) => ({
+      ...item,
+      spec: item.spec ? normalizeFormSpecLabels(item.spec) : item.spec,
+    }));
     if (!parsed.length) return [emptyProject()];
     const promptIndex = parsed.findIndex((item) => item.mode === "create_from_prompt");
     if (promptIndex <= 0) return parsed;
@@ -157,6 +160,80 @@ function summarizePlan(plan: AiPlanResponse) {
   return `${plan.summary}\n\nAssumptions:\n${plan.assumptions.map((a) => `- ${a}`).join("\n")}${questions}`;
 }
 
+function humanizeFieldLabel(value: string) {
+  const raw = String(value || "").trim();
+  if (!raw) return raw;
+  if (/\s/.test(raw) && !raw.includes("_")) return raw;
+
+  const words = raw
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/([A-Z]+)([A-Z][a-z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim()
+    .split(" ");
+
+  const smallWords = new Set(["a", "an", "and", "as", "at", "by", "for", "from", "if", "in", "of", "on", "or", "the", "to", "with"]);
+  const acronyms = new Set(["AC", "BMS", "DB", "ETA", "JSA", "LOTO", "RCD", "SCADA", "SM8F", "SWMS"]);
+
+  return words
+    .map((word, index) => {
+      const upper = word.toUpperCase();
+      const lower = word.toLowerCase();
+      if (index === 0 && upper === "NO") return "No.";
+      if (acronyms.has(upper)) return upper;
+      if (index > 0 && smallWords.has(lower)) return lower;
+      return `${word.charAt(0).toUpperCase()}${word.slice(1).toLowerCase()}`;
+    })
+    .join(" ");
+}
+
+function normalizeFormSpecLabels(spec: FormSpec): FormSpec {
+  const labelMap = new Map<string, string>();
+  const fields = (spec.fields || []).map((field) => {
+    const label = humanizeFieldLabel(field.label);
+    labelMap.set(field.label, label);
+    labelMap.set(field.label.replace(/\s+/g, ""), label);
+    return { ...field, label };
+  });
+
+  const normalizeCondition = (condition: FieldCondition): FieldCondition => {
+    const questionLabel = labelMap.get(condition.questionLabel) || humanizeFieldLabel(condition.questionLabel);
+    return { ...condition, questionLabel };
+  };
+
+  const normalizedFields = fields.map((field) => ({
+    ...field,
+    conditions: field.conditions?.map(normalizeCondition),
+  }));
+
+  const replaceLabels = (content: string) => {
+    let next = content;
+    for (const [from, to] of labelMap.entries()) {
+      if (!from || from === to) continue;
+      next = next.replace(new RegExp(from.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g"), to);
+    }
+    return next;
+  };
+
+  return {
+    ...spec,
+    fields: normalizedFields,
+    docxContent: {
+      ...spec.docxContent,
+      sections: (spec.docxContent?.sections || []).map((section) => ({
+        ...section,
+        content: replaceLabels(section.content || ""),
+        displayWhen: Array.isArray(section.displayWhen)
+          ? section.displayWhen.map(normalizeCondition)
+          : section.displayWhen
+            ? normalizeCondition(section.displayWhen)
+            : section.displayWhen,
+      })),
+    },
+  };
+}
+
 export default function App() {
   const [projects, setProjects] = useState<ProjectRecord[]>(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(projects[0]?.id);
@@ -188,10 +265,14 @@ export default function App() {
     loadProjectsFromDb()
       .then((dbProjects) => {
         if (dbProjects.length) {
-          setProjects(dbProjects);
-          const promptProject = dbProjects.find((item) => item.mode === "create_from_prompt");
+          const normalizedProjects = dbProjects.map((item) => ({
+            ...item,
+            spec: item.spec ? normalizeFormSpecLabels(item.spec) : item.spec,
+          }));
+          setProjects(normalizedProjects);
+          const promptProject = normalizedProjects.find((item) => item.mode === "create_from_prompt");
           setActiveProjectId((promptProject || dbProjects[0]).id);
-          localStorage.setItem(STORAGE_KEY, JSON.stringify(dbProjects));
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedProjects));
         }
       })
       .catch(() => undefined);
@@ -234,6 +315,7 @@ export default function App() {
   };
 
   const applyPlan = (plan: AiPlanResponse, baseMessages = project.messages, state: GenerationState = "draft") => {
+    const normalizedSpec = normalizeFormSpecLabels(plan.spec);
     const message: ChatMessage = {
       id: uid("msg"),
       role: "assistant",
@@ -241,8 +323,8 @@ export default function App() {
       timestamp: new Date().toISOString(),
     };
     updateProject({
-      title: plan.spec.title || project.title,
-      spec: { ...plan.spec, designSettings: { ...project.designSettings, ...(plan.spec.designSettings || {}) } },
+      title: normalizedSpec.title || project.title,
+      spec: { ...normalizedSpec, designSettings: { ...project.designSettings, ...(normalizedSpec.designSettings || {}) } },
       messages: [...baseMessages, message],
       state: plan.clarificationQuestions.length ? "needsClarification" : state,
     });
@@ -314,7 +396,8 @@ export default function App() {
     setError("");
     updateProject({ state: "building" });
     try {
-      const blob = await buildSm8f({ ...spec, designSettings: project.designSettings });
+      const normalizedSpec = normalizeFormSpecLabels(spec);
+      const blob = await buildSm8f({ ...normalizedSpec, designSettings: project.designSettings });
       saveAs(blob, `${spec.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "autoform"}.sm8f`);
       updateProject({ state: "ready" });
     } catch (err: any) {
@@ -345,7 +428,7 @@ export default function App() {
     setShowNewMenu(false);
   };
 
-  const updateSpec = (nextSpec: FormSpec) => updateProject({ spec: { ...nextSpec, designSettings: project.designSettings } });
+  const updateSpec = (nextSpec: FormSpec) => updateProject({ spec: { ...normalizeFormSpecLabels(nextSpec), designSettings: project.designSettings } });
   const updateDesign = (nextDesign: DesignSettings) => updateProject({ designSettings: nextDesign, spec: { ...spec, designSettings: nextDesign } });
 
   if (!accessGranted) {
