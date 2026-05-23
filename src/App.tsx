@@ -488,8 +488,14 @@ function Workspace(props: {
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 p-4 lg:p-6">
-      <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[calc(100vh-7rem)] flex flex-col">
+    <div className="flex min-h-[calc(100vh-5rem)] flex-col gap-5 p-4 lg:p-6">
+      <section className="space-y-5 min-w-0">
+        <Metrics counts={props.fieldCounts} />
+        <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
+        <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
+      </section>
+
+      <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[360px] h-[46vh] flex flex-col">
         <PanelTitle icon={MessageSquareText} title="AI chat" subtitle="Describe, revise, approve" />
         {!props.hasOpenAiKey && (
           <div className="mx-4 mt-4 rounded-[8px] border border-lime-200 bg-lime-50 p-3 text-sm text-zinc-700 space-y-2">
@@ -550,12 +556,6 @@ function Workspace(props: {
           </div>
           {props.error && <p className="text-sm text-red-600">{props.error}</p>}
         </div>
-      </section>
-
-      <section className="space-y-5 min-w-0">
-        <Metrics counts={props.fieldCounts} />
-        <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
-        <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
       </section>
     </div>
   );
