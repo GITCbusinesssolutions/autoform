@@ -764,7 +764,14 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
         <TextInput label="Description" value={spec.description} onChange={(description) => updateSpec({ ...spec, description })} />
       </div>
       <div className="overflow-auto max-h-[56vh]">
-        <table className="w-full text-sm">
+        <table className="w-full table-fixed text-sm">
+          <colgroup>
+            <col className="w-[34%]" />
+            <col className="w-[120px]" />
+            <col className="w-[120px]" />
+            <col className="w-[56px]" />
+            <col className="w-[380px]" />
+          </colgroup>
           <thead className="sticky top-0 bg-zinc-950 text-white">
             <tr>
               <th className="text-left p-2 font-medium">Question</th>
@@ -777,28 +784,34 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
           <tbody>
             {spec.fields.map((field, index) => (
               <tr key={`${field.label}-${index}`} className="border-b border-zinc-200 align-top">
-                <td className="p-2 min-w-56">
-                  <input className="w-full rounded border border-zinc-200 px-2 py-1" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} />
-                  <button onClick={() => setDetailsIndex(index)} className="mt-1 inline-flex items-center gap-1 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50">
-                    <Pencil size={12} />
-                    {field.additionalDetails ? "Edit guidance" : "Add guidance"}
-                  </button>
+                <td className="p-2">
+                  <div className="flex items-center gap-1">
+                    <input className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} />
+                    <button
+                      onClick={() => setDetailsIndex(index)}
+                      className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded border text-zinc-600 hover:bg-zinc-50", field.additionalDetails ? "border-lime-300 bg-lime-50" : "border-zinc-200")}
+                      title={field.additionalDetails ? "Edit guidance" : "Add guidance"}
+                      aria-label={field.additionalDetails ? `Edit guidance for ${field.label}` : `Add guidance for ${field.label}`}
+                    >
+                      <Pencil size={14} />
+                    </button>
+                  </div>
                 </td>
                 <td className="p-2">
-                  <select className="rounded border border-zinc-200 px-2 py-1" value={field.type} onChange={(event) => updateField(index, { type: event.target.value as ServiceM8Field["type"] })}>
+                  <select className="w-full rounded border border-zinc-200 px-2 py-1" value={field.type} onChange={(event) => updateField(index, { type: event.target.value as ServiceM8Field["type"] })}>
                     {["text", "textarea", "number", "date", "time", "select", "checkbox", "multi_answer", "photo", "signature"].map((type) => <option key={type}>{type}</option>)}
                   </select>
                 </td>
-                <td className="p-2 min-w-44">
-                  <button onClick={() => setOptionsIndex(index)} className="inline-flex items-center gap-2 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50">
+                <td className="p-2">
+                  <button onClick={() => setOptionsIndex(index)} className="inline-flex w-full items-center justify-center gap-1 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50">
                     <Pencil size={12} />
-                    {(field.options || []).length ? `${field.options?.length} options` : "Edit options"}
+                    <span className="truncate">{(field.options || []).length ? `${field.options?.length} options` : "Options"}</span>
                   </button>
                 </td>
-                <td className="p-2">
+                <td className="p-2 text-center">
                   <input type="checkbox" checked={field.required} onChange={(event) => updateField(index, { required: event.target.checked })} />
                 </td>
-                <td className="p-2 min-w-64">
+                <td className="p-2">
                   <ConditionEditor fields={spec.fields} currentIndex={index} condition={field.conditions?.[0]} onChange={(condition) => updateField(index, { conditions: condition.questionLabel ? [condition] : [] })} />
                 </td>
               </tr>
@@ -852,7 +865,7 @@ function ConditionEditor({ fields, currentIndex, condition, onChange }: { fields
   const options = selectedField?.options || [];
   const useCustomValue = !!options.length && (!!value.value && !options.includes(value.value));
   return (
-    <div className="grid grid-cols-[1fr_140px_1fr] gap-1">
+    <div className="grid max-w-[360px] grid-cols-[130px_104px_120px] gap-1">
       <select
         className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs"
         value={value.questionLabel}
@@ -861,7 +874,7 @@ function ConditionEditor({ fields, currentIndex, condition, onChange }: { fields
         <option value="">No condition</option>
         {availableFields.map((field) => <option key={field.label} value={field.label}>{field.label}</option>)}
       </select>
-      <select className="rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
+      <select className="min-w-0 rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
         {operatorOptions.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}
       </select>
       {options.length && !useCustomValue ? (
@@ -871,7 +884,7 @@ function ConditionEditor({ fields, currentIndex, condition, onChange }: { fields
           <option value="__other__">Other...</option>
         </select>
       ) : (
-        <input className="rounded border border-zinc-200 px-2 py-1 text-xs" placeholder={options.length ? "Other value" : "Value"} value={value.value === "__other__" ? "" : value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
+        <input className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" placeholder={options.length ? "Other value" : "Value"} value={value.value === "__other__" ? "" : value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
       )}
     </div>
   );
