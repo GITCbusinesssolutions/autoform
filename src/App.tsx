@@ -15,6 +15,7 @@ import {
   MessageSquareText,
   Paintbrush,
   Plus,
+  Pencil,
   Save,
   Settings,
   ShieldAlert,
@@ -602,6 +603,8 @@ function Metrics({ counts }: { counts: { total: number; required: number; condit
 }
 
 function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: FormSpec) => void }) {
+  const [optionsIndex, setOptionsIndex] = useState<number | null>(null);
+  const [detailsIndex, setDetailsIndex] = useState<number | null>(null);
   const updateField = (index: number, patch: Partial<ServiceM8Field>) => {
     const fields = spec.fields.map((field, fieldIndex) => (fieldIndex === index ? { ...field, ...patch } : field));
     updateSpec({ ...spec, fields });
@@ -641,7 +644,10 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
               <tr key={`${field.label}-${index}`} className="border-b border-zinc-200 align-top">
                 <td className="p-2 min-w-56">
                   <input className="w-full rounded border border-zinc-200 px-2 py-1" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} />
-                  <input className="mt-1 w-full rounded border border-zinc-200 px-2 py-1 text-xs" placeholder="Guidance" value={field.additionalDetails || ""} onChange={(event) => updateField(index, { additionalDetails: event.target.value })} />
+                  <button onClick={() => setDetailsIndex(index)} className="mt-1 inline-flex items-center gap-1 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-600 hover:bg-zinc-50">
+                    <Pencil size={12} />
+                    {field.additionalDetails ? "Edit guidance" : "Add guidance"}
+                  </button>
                 </td>
                 <td className="p-2">
                   <select className="rounded border border-zinc-200 px-2 py-1" value={field.type} onChange={(event) => updateField(index, { type: event.target.value as ServiceM8Field["type"] })}>
@@ -649,13 +655,16 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
                   </select>
                 </td>
                 <td className="p-2 min-w-44">
-                  <input className="w-full rounded border border-zinc-200 px-2 py-1 text-xs" value={(field.options || []).join(", ")} onChange={(event) => updateField(index, { options: event.target.value.split(",").map((item) => item.trim()).filter(Boolean) })} />
+                  <button onClick={() => setOptionsIndex(index)} className="inline-flex items-center gap-2 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50">
+                    <Pencil size={12} />
+                    {(field.options || []).length ? `${field.options?.length} options` : "Edit options"}
+                  </button>
                 </td>
                 <td className="p-2">
                   <input type="checkbox" checked={field.required} onChange={(event) => updateField(index, { required: event.target.checked })} />
                 </td>
                 <td className="p-2 min-w-64">
-                  <ConditionEditor condition={field.conditions?.[0]} onChange={(condition) => updateField(index, { conditions: condition.questionLabel ? [condition] : [] })} />
+                  <ConditionEditor fields={spec.fields} currentIndex={index} condition={field.conditions?.[0]} onChange={(condition) => updateField(index, { conditions: condition.questionLabel ? [condition] : [] })} />
                 </td>
               </tr>
             ))}
@@ -666,19 +675,69 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
         <Plus size={16} />
         Add field
       </button>
+      {optionsIndex !== null && (
+        <OptionsModal
+          field={spec.fields[optionsIndex]}
+          onClose={() => setOptionsIndex(null)}
+          onSave={(options) => {
+            updateField(optionsIndex, { options });
+            setOptionsIndex(null);
+          }}
+        />
+      )}
+      {detailsIndex !== null && (
+        <DetailsModal
+          field={spec.fields[detailsIndex]}
+          onClose={() => setDetailsIndex(null)}
+          onSave={(additionalDetails) => {
+            updateField(detailsIndex, { additionalDetails });
+            setDetailsIndex(null);
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function ConditionEditor({ condition, onChange }: { condition?: FieldCondition; onChange: (condition: FieldCondition) => void }) {
+const operatorOptions: { value: FieldCondition["operator"]; label: string }[] = [
+  { value: "EQ", label: "Equals" },
+  { value: "NEQ", label: "Does not equal" },
+  { value: "CON", label: "Contains" },
+  { value: "NCON", label: "Does not contain" },
+  { value: "LT", label: "Less than" },
+  { value: "GT", label: "Greater than" },
+  { value: "LTE", label: "Less than or equal" },
+  { value: "GTE", label: "Greater than or equal" },
+];
+
+function ConditionEditor({ fields, currentIndex, condition, onChange }: { fields: ServiceM8Field[]; currentIndex: number; condition?: FieldCondition; onChange: (condition: FieldCondition) => void }) {
   const value = condition || { questionLabel: "", operator: "EQ", value: "" };
+  const availableFields = fields.filter((_, index) => index !== currentIndex);
+  const selectedField = availableFields.find((field) => field.label === value.questionLabel);
+  const options = selectedField?.options || [];
+  const useCustomValue = !!options.length && (!!value.value && !options.includes(value.value));
   return (
-    <div className="grid grid-cols-[1fr_80px_1fr] gap-1">
-      <input className="rounded border border-zinc-200 px-2 py-1 text-xs" placeholder="Question" value={value.questionLabel} onChange={(event) => onChange({ ...value, questionLabel: event.target.value })} />
-      <select className="rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
-        {["EQ", "NEQ", "CON", "NCON"].map((operator) => <option key={operator}>{operator}</option>)}
+    <div className="grid grid-cols-[1fr_140px_1fr] gap-1">
+      <select
+        className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs"
+        value={value.questionLabel}
+        onChange={(event) => onChange({ ...value, questionLabel: event.target.value, value: "" })}
+      >
+        <option value="">No condition</option>
+        {availableFields.map((field) => <option key={field.label} value={field.label}>{field.label}</option>)}
       </select>
-      <input className="rounded border border-zinc-200 px-2 py-1 text-xs" placeholder="Value" value={value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
+      <select className="rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
+        {operatorOptions.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}
+      </select>
+      {options.length && !useCustomValue ? (
+        <select className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" value={value.value} onChange={(event) => onChange({ ...value, value: event.target.value === "__other__" ? "__other__" : event.target.value })}>
+          <option value="">Select value</option>
+          {options.map((option) => <option key={option} value={option}>{option}</option>)}
+          <option value="__other__">Other...</option>
+        </select>
+      ) : (
+        <input className="rounded border border-zinc-200 px-2 py-1 text-xs" placeholder={options.length ? "Other value" : "Value"} value={value.value === "__other__" ? "" : value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
+      )}
     </div>
   );
 }
@@ -689,6 +748,67 @@ function TextInput({ label, value, onChange }: { label: string; value: string; o
       {label}
       <input value={value} onChange={(event) => onChange(event.target.value)} className="mt-1 w-full rounded-[8px] border border-zinc-300 px-3 py-2 text-sm text-zinc-900" />
     </label>
+  );
+}
+
+function OptionsModal({ field, onSave, onClose }: { field: ServiceM8Field; onSave: (options: string[]) => void; onClose: () => void }) {
+  const [options, setOptions] = useState<string[]>(() => {
+    const existing = field.options?.length ? field.options : [""];
+    return [...existing, ...Array(Math.max(0, 15 - existing.length)).fill("")].slice(0, 15);
+  });
+
+  const updateOption = (index: number, value: string) => {
+    setOptions((current) => current.map((option, optionIndex) => optionIndex === index ? value : option));
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] bg-zinc-950/50 p-4" role="dialog" aria-modal="true">
+      <div className="mx-auto mt-8 max-w-xl rounded-[8px] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Edit options</h2>
+            <p className="text-sm text-zinc-500">{field.label} · up to 15 options</p>
+          </div>
+          <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-3 py-2 text-sm">Close</button>
+        </div>
+        <div className="grid max-h-[65vh] grid-cols-1 gap-2 overflow-auto p-4 sm:grid-cols-2">
+          {options.map((option, index) => (
+            <label key={index} className="text-xs text-zinc-500">
+              Option {index + 1}
+              <input value={option} onChange={(event) => updateOption(index, event.target.value)} className="mt-1 w-full rounded-[8px] border border-zinc-300 px-3 py-2 text-sm text-zinc-900" />
+            </label>
+          ))}
+        </div>
+        <div className="flex justify-end gap-2 border-t border-zinc-200 p-4">
+          <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-4 py-2 text-sm">Cancel</button>
+          <button onClick={() => onSave(options.map((option) => option.trim()).filter(Boolean))} className="rounded-[8px] bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">Save options</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DetailsModal({ field, onSave, onClose }: { field: ServiceM8Field; onSave: (value: string) => void; onClose: () => void }) {
+  const [value, setValue] = useState(field.additionalDetails || "");
+  return (
+    <div className="fixed inset-0 z-[90] bg-zinc-950/50 p-4" role="dialog" aria-modal="true">
+      <div className="mx-auto mt-12 max-w-2xl rounded-[8px] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Edit guidance</h2>
+            <p className="text-sm text-zinc-500">{field.label}</p>
+          </div>
+          <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-3 py-2 text-sm">Close</button>
+        </div>
+        <div className="p-4">
+          <textarea value={value} onChange={(event) => setValue(event.target.value)} className="h-56 w-full resize-none rounded-[8px] border border-zinc-300 p-3 text-sm text-zinc-900" placeholder="Add guidance, prompt text, hints, or technician instructions. Use one line per instruction if helpful." />
+        </div>
+        <div className="flex justify-end gap-2 border-t border-zinc-200 p-4">
+          <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-4 py-2 text-sm">Cancel</button>
+          <button onClick={() => onSave(value)} className="rounded-[8px] bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">Save guidance</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
