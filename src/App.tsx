@@ -23,6 +23,7 @@ import {
   TableProperties,
   Upload,
   Wand2,
+  X,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { saveAs } from "file-saver";
@@ -166,6 +167,7 @@ export default function App() {
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [accessGranted, setAccessGranted] = useState(() => localStorage.getItem("autoform_access") === "ok");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -408,6 +410,10 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <StatePill state={project.state} />
+            <button onClick={() => { setShowNewMenu(false); setShowChat(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+              <MessageSquareText size={17} />
+              AI chat
+            </button>
             <button onClick={() => { setShowNewMenu(false); setShowPreview(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
               <FileText size={17} />
               Preview
@@ -430,7 +436,6 @@ export default function App() {
             onFiles={handleFiles}
             onGenerate={handleGenerate}
             onLoadCodexResponse={handleLoadCodexResponse}
-            onBuild={handleBuild}
             isWorking={isWorking}
             hasOpenAiKey={hasOpenAiKey}
             error={error}
@@ -448,6 +453,22 @@ export default function App() {
         )}
         {activeSection === "projects" && <Projects projects={projects} activeProjectId={project.id} openProject={setActiveProjectId} />}
         {activeSection === "settings" && <SettingsPanel hasOpenAiKey={hasOpenAiKey} onStatusChange={setHasOpenAiKey} />}
+        {showChat && (
+          <ChatModal
+            project={project}
+            prompt={prompt}
+            setPrompt={setPrompt}
+            attachments={attachments}
+            setAttachments={setAttachments}
+            onFiles={handleFiles}
+            onGenerate={handleGenerate}
+            onLoadCodexResponse={handleLoadCodexResponse}
+            isWorking={isWorking}
+            hasOpenAiKey={hasOpenAiKey}
+            error={error}
+            onClose={() => setShowChat(false)}
+          />
+        )}
         {showPreview && <PreviewModal spec={spec} onClose={() => setShowPreview(false)} />}
       </main>
     </div>
@@ -477,7 +498,6 @@ function Workspace(props: {
   onFiles: (files: FileList | null) => void;
   onGenerate: () => void;
   onLoadCodexResponse: () => void;
-  onBuild: () => void;
   isWorking: boolean;
   hasOpenAiKey: boolean;
   error: string;
@@ -488,15 +508,47 @@ function Workspace(props: {
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
-    <div className="flex min-h-[calc(100vh-5rem)] flex-col gap-5 p-4 lg:p-6">
+    <div className="min-h-[calc(100vh-5rem)] p-4 lg:p-6">
       <section className="space-y-5 min-w-0">
         <Metrics counts={props.fieldCounts} />
         <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
         <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
       </section>
+    </div>
+  );
+}
 
-      <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[360px] h-[46vh] flex flex-col">
-        <PanelTitle icon={MessageSquareText} title="AI chat" subtitle="Describe, revise, approve" />
+function ChatModal(props: {
+  project: ProjectRecord;
+  prompt: string;
+  setPrompt: (value: string) => void;
+  attachments: AttachmentPayload[];
+  setAttachments: React.Dispatch<React.SetStateAction<AttachmentPayload[]>>;
+  onFiles: (files: FileList | null) => void;
+  onGenerate: () => void;
+  onLoadCodexResponse: () => void;
+  isWorking: boolean;
+  hasOpenAiKey: boolean;
+  error: string;
+  onClose: () => void;
+}) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/55 p-3 lg:p-6">
+      <section className="flex h-[86vh] w-full max-w-5xl flex-col rounded-[8px] border border-zinc-200 bg-white shadow-2xl">
+        <div className="border-b border-zinc-200 flex items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-[8px] bg-zinc-950 text-lime-300 flex items-center justify-center">
+              <MessageSquareText size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold">AI chat</h2>
+              <p className="text-xs text-zinc-500">Describe, revise, approve</p>
+            </div>
+          </div>
+          <button onClick={props.onClose} className="h-9 w-9 rounded-[8px] border border-zinc-300 bg-white text-zinc-700 flex items-center justify-center hover:bg-zinc-100" aria-label="Close AI chat">
+            <X size={18} />
+          </button>
+        </div>
         {!props.hasOpenAiKey && (
           <div className="mx-4 mt-4 rounded-[8px] border border-lime-200 bg-lime-50 p-3 text-sm text-zinc-700 space-y-2">
             <p>Codex local bridge is active. This app writes request files for Codex instead of generating fake AI fields.</p>
@@ -510,7 +562,7 @@ function Workspace(props: {
             )}
           </div>
         )}
-        <div className="flex-1 overflow-auto px-4 space-y-4">
+        <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
           {props.project.messages.map((message) => (
             <div key={message.id} className={cn("rounded-[8px] p-4 text-sm whitespace-pre-wrap", message.role === "user" ? "bg-zinc-950 text-white" : "bg-[#f4f5ef] text-zinc-800")}>
               <div className="flex items-center gap-2 mb-2 text-xs opacity-70">
@@ -551,7 +603,7 @@ function Workspace(props: {
               <input className="hidden" type="file" multiple accept=".pdf,.docx,.sm8f,.json,.png,.jpg,.jpeg,.txt,.md" onChange={(event) => props.onFiles(event.target.files)} />
             </label>
             <button onClick={props.onGenerate} disabled={props.isWorking || (!props.prompt.trim() && !props.attachments.length)} className="flex-1 bg-lime-300 text-zinc-950 rounded-[8px] px-4 py-2 text-sm font-semibold disabled:opacity-50">
-              {props.isWorking ? "Working..." : props.hasOpenAiKey ? (props.spec.fields.length ? "Revise plan" : "Generate plan") : "Prepare Codex brief"}
+              {props.isWorking ? "Working..." : props.hasOpenAiKey ? (props.project.spec.fields.length ? "Revise plan" : "Generate plan") : "Prepare Codex brief"}
             </button>
           </div>
           {props.error && <p className="text-sm text-red-600">{props.error}</p>}
