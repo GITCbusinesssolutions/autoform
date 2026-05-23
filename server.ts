@@ -14,7 +14,7 @@ dotenv.config();
 const app = express();
 const PORT = Number(process.env.PORT || 3000);
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
-const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const CODEX_BRIDGE_DIR = process.env.CODEX_BRIDGE_DIR || (process.platform === "win32" ? "C:\\tmp\\autoform-codex-bridge" : path.join(os.tmpdir(), "autoform-codex-bridge"));
 
 app.use(express.json({ limit: "30mb" }));
@@ -137,7 +137,7 @@ const formPlanSchema = {
       spec: {
         type: "object",
         additionalProperties: false,
-        required: ["title", "badgeName", "description", "fields", "docxContent"],
+        required: ["title", "badgeName", "description", "fields", "docxContent", "designSettings"],
         properties: {
           title: { type: "string" },
           badgeName: { type: "string" },
@@ -195,6 +195,52 @@ const formPlanSchema = {
               },
             },
           },
+          designSettings: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "companyName",
+              "designBrief",
+              "aiChooseDesign",
+              "stylePreset",
+              "primaryColor",
+              "accentColor",
+              "headerColor",
+              "footerColor",
+              "tableHeaderColor",
+              "tableBorderColor",
+              "fontFamily",
+              "bodyFontSize",
+              "headingStyle",
+              "tableStyle",
+              "logoPlacement",
+              "logoWidth",
+              "pageMargin",
+              "headerText",
+              "footerText",
+            ],
+            properties: {
+              companyName: { type: "string" },
+              designBrief: { type: "string" },
+              aiChooseDesign: { type: "boolean" },
+              stylePreset: { enum: ["ai", "clean_trade", "corporate", "source_replica", "minimal"] },
+              primaryColor: { type: "string" },
+              accentColor: { type: "string" },
+              headerColor: { type: "string" },
+              footerColor: { type: "string" },
+              tableHeaderColor: { type: "string" },
+              tableBorderColor: { type: "string" },
+              fontFamily: { enum: ["Arial", "Calibri", "Inter", "Aptos"] },
+              bodyFontSize: { type: "number" },
+              headingStyle: { enum: ["bar", "underline", "boxed"] },
+              tableStyle: { enum: ["source", "minimal", "grid"] },
+              logoPlacement: { enum: ["left", "center", "right"] },
+              logoWidth: { type: "number" },
+              pageMargin: { type: "number" },
+              headerText: { type: "string" },
+              footerText: { type: "string" },
+            },
+          },
         },
       },
     },
@@ -220,7 +266,7 @@ function codexHandoffBrief(body: any) {
     "Design settings:",
     JSON.stringify(body.designSettings || {}, null, 2),
     "",
-    "Codex should reply with a plan first, ask clarification questions where needed, then produce/import a FormSpec JSON for this app to build into .sm8f.",
+    "Codex should reply with a plan first, ask clarification questions where needed, list the proposed ServiceM8 questions/sections/logic for user review, then produce/import a FormSpec JSON for this app to build into .sm8f. Include designSettings in the FormSpec. If aiChooseDesign is true, choose suitable colours, typography, heading/table style and report treatment from the user design brief.",
   ].join("\n");
 }
 
@@ -247,7 +293,7 @@ async function writeCodexBridgeRequest(body: any) {
     '  "clarificationQuestions": [],',
     '  "designNotes": [],',
     '  "nextSteps": [],',
-    '  "spec": { "title": "...", "badgeName": "...", "description": "...", "fields": [], "docxContent": { "sections": [] } }',
+    '  "spec": { "title": "...", "badgeName": "...", "description": "...", "fields": [], "docxContent": { "sections": [] }, "designSettings": { "...": "..." } }',
     "}",
   ].join("\n");
 
@@ -260,7 +306,7 @@ async function writeCodexBridgeRequest(body: any) {
 function openAiInstructions(mode: string) {
   return `You are Autoform, an expert ServiceM8 .sm8f form designer. Build structured ServiceM8 form specs from user scopes and uploaded reference files.
 Mode: ${mode}.
-Return a practical draft users can edit. Use clean alphanumeric field labels. Badge names must be 11 chars or less. Prefer existing ServiceM8/job merge fields for admin data. For multi-answer driven display logic, write display conditions as EQ/CON in the spec; the builder will invert multi-answer skip logic to NCON. DOCX sections should use editable table layout unless the user asks otherwise.`;
+For create_from_prompt, build from the user's written scope first and return the proposed questions, sections, answer types, required flags, and conditional logic for review. Return a practical draft users can edit. Use clean alphanumeric field labels. Badge names must be 11 chars or less. Prefer existing ServiceM8/job merge fields for admin data. For multi-answer driven display logic, write display conditions as EQ/CON in the spec; the builder will invert multi-answer skip logic to NCON. DOCX sections should use editable table layout unless the user asks otherwise. Include designSettings in the spec. If aiChooseDesign is true, choose design elements that suit the trade/compliance context and explain the choices in designNotes.`;
 }
 
 function attachmentPlanningContext(attachments: any[] = []) {

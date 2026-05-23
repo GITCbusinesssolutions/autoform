@@ -48,13 +48,17 @@ import {
 import { cn } from "./lib/utils";
 
 const tools: { id: ToolMode; label: string; icon: React.ElementType; status: string }[] = [
-  { id: "create_sm8f", label: "Create SM8F", icon: FileArchive, status: "Live" },
-  { id: "update_sm8f", label: "Update SM8F", icon: ClipboardList, status: "Preview" },
+  { id: "create_from_prompt", label: "Create from Prompt", icon: MessageSquareText, status: "Live" },
+  { id: "create_from_pdf", label: "Create from Existing PDF", icon: FileText, status: "Preview" },
+  { id: "update_existing_form", label: "Update Existing Form", icon: ClipboardList, status: "Preview" },
   { id: "swms_builder", label: "SWMS Builder", icon: ShieldAlert, status: "Preview" },
 ];
 
 const defaultDesign: DesignSettings = {
   companyName: "Autoform Studio",
+  designBrief: "Clean trade-service report, mobile-friendly form, editable table-based PDF output.",
+  aiChooseDesign: true,
+  stylePreset: "ai",
   primaryColor: "#111827",
   accentColor: "#9fdb1d",
   headerColor: "#3f3f46",
@@ -71,7 +75,7 @@ const defaultDesign: DesignSettings = {
   headerText: "Generated ServiceM8 Form",
   footerText: "Commercial-in-confidence",
 };
-const STORAGE_KEY = "autoform_projects_v3";
+const STORAGE_KEY = "autoform_projects_v4";
 
 const starterSpec: FormSpec = {
   title: "Untitled ServiceM8 Form",
@@ -90,7 +94,7 @@ function cleanBadge(value: string) {
   return value.replace(/[^a-zA-Z0-9\s]/g, " ").replace(/\s+/g, " ").trim().slice(0, 11);
 }
 
-function emptyProject(mode: ToolMode = "create_sm8f"): ProjectRecord {
+function emptyProject(mode: ToolMode = "create_from_prompt"): ProjectRecord {
   return {
     id: uid("project"),
     title: "New Autoform request",
@@ -100,7 +104,7 @@ function emptyProject(mode: ToolMode = "create_sm8f"): ProjectRecord {
       {
         id: uid("msg"),
         role: "assistant",
-        content: "Tell me what ServiceM8 asset you need and upload any reference files. In local Codex mode I will prepare a handoff brief; with backend AI configured I will draft the form plan here.",
+        content: "Describe the form you need, choose any design direction, and I will return a build plan with the proposed questions, sections, logic and report layout before the SM8F is built.",
         timestamp: new Date().toISOString(),
       },
     ],
@@ -148,7 +152,7 @@ function summarizePlan(plan: AiPlanResponse) {
 export default function App() {
   const [projects, setProjects] = useState<ProjectRecord[]>(loadProjects);
   const [activeProjectId, setActiveProjectId] = useState(projects[0]?.id);
-  const [activeSection, setActiveSection] = useState<"workspace" | "design" | "projects" | "settings">("workspace");
+  const [activeSection, setActiveSection] = useState<"workspace" | "projects" | "settings">("workspace");
   const [prompt, setPrompt] = useState("");
   const [attachments, setAttachments] = useState<AttachmentPayload[]>([]);
   const [isWorking, setIsWorking] = useState(false);
@@ -216,7 +220,7 @@ export default function App() {
     };
     updateProject({
       title: plan.spec.title || project.title,
-      spec: { ...plan.spec, designSettings: project.designSettings },
+      spec: { ...plan.spec, designSettings: { ...project.designSettings, ...(plan.spec.designSettings || {}) } },
       messages: [...baseMessages, message],
       state: plan.clarificationQuestions.length ? "needsClarification" : state,
     });
@@ -305,7 +309,7 @@ export default function App() {
   };
 
   const addProject = () => {
-    const nextProject = emptyProject("create_sm8f");
+    const nextProject = emptyProject("create_from_prompt");
     persist([nextProject, ...projects]);
     setActiveProjectId(nextProject.id);
     setActiveSection("workspace");
@@ -374,7 +378,6 @@ export default function App() {
 
         <div className="p-3 border-t border-white/10">
           {[
-            ["design", Paintbrush, "Design Studio"],
             ["projects", Layers3, "Projects"],
             ["settings", Settings, "Settings"],
           ].map(([id, Icon, label]) => (
@@ -431,11 +434,6 @@ export default function App() {
             hasOpenAiKey={hasOpenAiKey}
             error={error}
             updateSpec={updateSpec}
-            fieldCounts={fieldCounts}
-          />
-        )}
-        {activeSection === "design" && (
-          <DesignStudio
             design={project.designSettings}
             updateDesign={updateDesign}
             onLogo={async (files) => {
@@ -444,6 +442,7 @@ export default function App() {
               const logo = await fileToAttachment(file);
               updateDesign({ ...project.designSettings, logo });
             }}
+            fieldCounts={fieldCounts}
           />
         )}
         {activeSection === "projects" && <Projects projects={projects} activeProjectId={project.id} openProject={setActiveProjectId} />}
@@ -481,6 +480,9 @@ function Workspace(props: {
   hasOpenAiKey: boolean;
   error: string;
   updateSpec: (spec: FormSpec) => void;
+  design: DesignSettings;
+  updateDesign: (design: DesignSettings) => void;
+  onLogo: (files: FileList | null) => void;
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
@@ -525,7 +527,7 @@ function Workspace(props: {
             value={props.prompt}
             onChange={(event) => props.setPrompt(event.target.value)}
             className="w-full h-28 resize-none rounded-[8px] border border-zinc-300 p-3 text-sm outline-none focus:border-zinc-950"
-            placeholder="Ask Autoform to inspect a PDF, build a form, add conditional logic, or revise the current spec..."
+            placeholder={props.project.mode === "create_from_prompt" ? "Describe the form scope, required questions, answer types, conditional logic, and any preferred design style..." : "Ask Autoform to inspect a PDF, build a form, add conditional logic, or revise the current spec..."}
           />
           <div className="flex flex-wrap gap-2">
             {props.attachments.map((file) => (
@@ -550,6 +552,7 @@ function Workspace(props: {
 
       <section className="space-y-5">
         <Metrics counts={props.fieldCounts} />
+        <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
         <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
       </section>
 
@@ -722,6 +725,52 @@ function PreviewPanel({ spec }: { spec: FormSpec }) {
             <pre className="p-3 text-xs whitespace-pre-wrap font-sans text-zinc-600">{section.content || "No content yet"}</pre>
           </div>
         )) : <p className="text-sm text-zinc-500">Generate a plan to preview DOCX sections.</p>}
+      </div>
+    </div>
+  );
+}
+
+function InlineDesignPanel({ design, updateDesign, onLogo }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void }) {
+  const update = (patch: Partial<DesignSettings>) => updateDesign({ ...design, ...patch });
+  return (
+    <div className="bg-white border border-zinc-200 rounded-[8px] p-4">
+      <PanelTitle icon={Paintbrush} title="Design brief" subtitle="Included in the AI form spec" />
+      <div className="mt-4 space-y-3">
+        <label className="flex items-center justify-between gap-3 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+          Let AI choose design elements
+          <input type="checkbox" checked={!!design.aiChooseDesign} onChange={(event) => update({ aiChooseDesign: event.target.checked })} className="h-4 w-4 accent-lime-400" />
+        </label>
+        <Select
+          label="Style direction"
+          value={design.stylePreset || "ai"}
+          onChange={(stylePreset) => update({ stylePreset: stylePreset as DesignSettings["stylePreset"] })}
+          options={["ai", "clean_trade", "corporate", "source_replica", "minimal"]}
+        />
+        <label className="text-xs text-zinc-500">
+          Design instructions for AI
+          <textarea
+            value={design.designBrief || ""}
+            onChange={(event) => update({ designBrief: event.target.value })}
+            className="mt-1 h-24 w-full resize-none rounded-[8px] border border-zinc-300 p-3 text-sm text-zinc-900"
+            placeholder="Example: match our brand colours, use editable tables, formal compliance-report style..."
+          />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-xs text-zinc-500">
+            Primary
+            <input type="color" value={design.primaryColor} onChange={(event) => update({ primaryColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+          </label>
+          <label className="text-xs text-zinc-500">
+            Accent
+            <input type="color" value={design.accentColor} onChange={(event) => update({ accentColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 rounded-[8px] border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-700 cursor-pointer">
+          <Image size={16} />
+          Upload logo
+          <input className="hidden" type="file" accept=".png,.jpg,.jpeg" onChange={(event) => onLogo(event.target.files)} />
+        </label>
+        {design.logo && <p className="text-xs text-zinc-500">{design.logo.name}</p>}
       </div>
     </div>
   );

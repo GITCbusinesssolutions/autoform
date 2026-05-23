@@ -1,4 +1,4 @@
-export type ToolMode = "create_sm8f" | "update_sm8f" | "swms_builder";
+export type ToolMode = "create_from_prompt" | "create_from_pdf" | "update_existing_form" | "swms_builder";
 
 export type GenerationState = "idle" | "draft" | "needsClarification" | "approved" | "building" | "ready" | "error";
 
@@ -46,6 +46,9 @@ export interface DocxSection {
 
 export interface DesignSettings {
   companyName: string;
+  designBrief?: string;
+  aiChooseDesign?: boolean;
+  stylePreset?: "ai" | "clean_trade" | "corporate" | "source_replica" | "minimal";
   logo?: AttachmentPayload | null;
   primaryColor: string;
   accentColor: string;
