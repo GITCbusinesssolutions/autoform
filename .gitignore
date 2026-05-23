@@ -10,3 +10,4 @@ coverage/
 *.sm8f
 *.zip
 tmp-*
+data/local-db.json

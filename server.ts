@@ -16,6 +16,7 @@ const PORT = Number(process.env.PORT || 3000);
 const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$/, "");
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const CODEX_BRIDGE_DIR = process.env.CODEX_BRIDGE_DIR || (process.platform === "win32" ? "C:\\tmp\\autoform-codex-bridge" : path.join(os.tmpdir(), "autoform-codex-bridge"));
+const LOCAL_DB_PATH = process.env.LOCAL_DB_PATH || path.join(process.cwd(), "data", "local-db.json");
 
 app.use(express.json({ limit: "30mb" }));
 app.use(cookieParser());
@@ -113,6 +114,41 @@ app.post("/api/auth/check", (req, res) => {
   const configured = process.env.APP_PASSWORD;
   if (!configured) return res.json({ ok: true });
   res.json({ ok: req.body?.password === configured });
+});
+
+async function readLocalDb() {
+  try {
+    return JSON.parse(await fs.readFile(LOCAL_DB_PATH, "utf8"));
+  } catch {
+    return { projects: [] };
+  }
+}
+
+async function writeLocalDb(data: any) {
+  await fs.mkdir(path.dirname(LOCAL_DB_PATH), { recursive: true });
+  await fs.writeFile(LOCAL_DB_PATH, JSON.stringify(data, null, 2), "utf8");
+}
+
+app.get("/api/projects", async (_req, res) => {
+  res.json(await readLocalDb());
+});
+
+app.put("/api/projects", async (req, res) => {
+  const projects = Array.isArray(req.body?.projects) ? req.body.projects : [];
+  await writeLocalDb({ projects, updatedAt: new Date().toISOString() });
+  res.json({ ok: true });
+});
+
+app.post("/api/settings/openai-key", async (req, res) => {
+  const apiKey = String(req.body?.apiKey || "").trim();
+  if (apiKey) process.env.OPENAI_API_KEY = apiKey;
+  res.json({
+    ok: !!apiKey,
+    message: apiKey
+      ? "OpenAI API key is active for this local server session. Add it to .env or Vercel environment variables for persistence."
+      : "Enter an API key to enable OpenAI generation.",
+    received: !!apiKey,
+  });
 });
 
 app.post("/api/generate-form", (_req, res) => {

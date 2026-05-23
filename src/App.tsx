@@ -30,7 +30,10 @@ import {
   checkAdminAccess,
   getAiStatus,
   loadCodexResponse,
+  loadProjectsFromDb,
   requestFormPlan,
+  saveOpenAiKey,
+  saveProjectsToDb,
   reviseFormPlan,
 } from "./services/codexGeneratorService";
 import {
@@ -157,6 +160,8 @@ export default function App() {
   const [attachments, setAttachments] = useState<AttachmentPayload[]>([]);
   const [isWorking, setIsWorking] = useState(false);
   const [hasOpenAiKey, setHasOpenAiKey] = useState(false);
+  const [showNewMenu, setShowNewMenu] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   const [accessGranted, setAccessGranted] = useState(() => localStorage.getItem("autoform_access") === "ok");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -167,12 +172,22 @@ export default function App() {
   const persist = (next: ProjectRecord[]) => {
     setProjects(next);
     localStorage.setItem(STORAGE_KEY, JSON.stringify(next));
+    saveProjectsToDb(next).catch(() => undefined);
   };
 
   useEffect(() => {
     getAiStatus()
       .then((status) => setHasOpenAiKey(status.hasOpenAiKey))
       .catch(() => setHasOpenAiKey(false));
+    loadProjectsFromDb()
+      .then((dbProjects) => {
+        if (dbProjects.length) {
+          setProjects(dbProjects);
+          setActiveProjectId(dbProjects[0].id);
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(dbProjects));
+        }
+      })
+      .catch(() => undefined);
   }, []);
 
   const updateProject = (patch: Partial<ProjectRecord>) => {
@@ -315,6 +330,14 @@ export default function App() {
     setActiveSection("workspace");
   };
 
+  const addProjectWithMode = (mode: ToolMode) => {
+    const nextProject = emptyProject(mode);
+    persist([nextProject, ...projects]);
+    setActiveProjectId(nextProject.id);
+    setActiveSection("workspace");
+    setShowNewMenu(false);
+  };
+
   const updateSpec = (nextSpec: FormSpec) => updateProject({ spec: { ...nextSpec, designSettings: project.designSettings } });
   const updateDesign = (nextDesign: DesignSettings) => updateProject({ designSettings: nextDesign, spec: { ...spec, designSettings: nextDesign } });
 
@@ -343,67 +366,36 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-[#f6f7f3] text-zinc-950">
-      <aside className="lg:fixed lg:inset-y-0 lg:left-0 lg:w-72 bg-[#111313] text-white border-r border-zinc-800 flex flex-col">
-        <div className="p-5 border-b border-white/10">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-[8px] bg-lime-300 text-zinc-950 flex items-center justify-center">
-              <Wand2 size={22} />
-            </div>
-            <div>
-              <p className="text-lg font-semibold">Autoform</p>
-              <p className="text-xs text-zinc-400">ServiceM8 asset studio</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-3">
-          <p className="px-3 py-2 text-[11px] uppercase tracking-[0.18em] text-zinc-500">Tools</p>
-          {tools.map((tool) => (
-            <button
-              key={tool.id}
-              onClick={() => setMode(tool.id)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-3 rounded-[8px] text-left text-sm transition",
-                project.mode === tool.id && activeSection === "workspace"
-                  ? "bg-white text-zinc-950"
-                  : "text-zinc-300 hover:bg-white/10",
-              )}
-            >
-              <tool.icon size={18} />
-              <span className="flex-1">{tool.label}</span>
-              <span className="text-[10px] rounded px-1.5 py-0.5 bg-lime-300/15 text-lime-200">{tool.status}</span>
-            </button>
-          ))}
-        </div>
-
-        <div className="p-3 border-t border-white/10">
-          {[
-            ["projects", Layers3, "Projects"],
-            ["settings", Settings, "Settings"],
-          ].map(([id, Icon, label]) => (
-            <button
-              key={String(id)}
-              onClick={() => setActiveSection(id as any)}
-              className={cn(
-                "w-full flex items-center gap-3 px-3 py-3 rounded-[8px] text-left text-sm transition",
-                activeSection === id ? "bg-lime-300 text-zinc-950" : "text-zinc-300 hover:bg-white/10",
-              )}
-            >
-              <Icon size={18} />
-              {label}
-            </button>
-          ))}
-        </div>
-
-        <div className="mt-auto p-4 border-t border-white/10">
-          <button onClick={addProject} className="w-full flex items-center justify-center gap-2 bg-white text-zinc-950 rounded-[8px] py-2.5 text-sm font-semibold">
-            <Plus size={16} />
-            New request
+      <aside className="lg:fixed lg:inset-y-0 lg:left-0 lg:w-16 bg-[#111313] text-white border-r border-zinc-800 flex flex-row lg:flex-col items-center gap-2 p-2">
+        <div className="relative">
+          <button title="New request" onClick={() => setShowNewMenu((value) => !value)} className="h-11 w-11 rounded-[8px] bg-lime-300 text-zinc-950 flex items-center justify-center">
+            <Plus size={20} />
           </button>
+          {showNewMenu && (
+            <div className="absolute left-0 top-14 z-50 w-64 rounded-[8px] border border-zinc-200 bg-white p-2 text-zinc-950 shadow-2xl lg:left-14 lg:top-0">
+              <p className="px-2 py-2 text-xs font-semibold uppercase text-zinc-500">New</p>
+              {tools.map((tool) => (
+                <button key={tool.id} onClick={() => addProjectWithMode(tool.id)} className="flex w-full items-center gap-3 rounded-[8px] px-3 py-2.5 text-left text-sm hover:bg-zinc-100">
+                  <tool.icon size={17} />
+                  <span className="flex-1">{tool.label}</span>
+                  <span className="text-[10px] text-zinc-500">{tool.status}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
+        <button title="Projects" onClick={() => { setShowNewMenu(false); setActiveSection("projects"); }} className={cn("h-11 w-11 rounded-[8px] flex items-center justify-center", activeSection === "projects" ? "bg-lime-300 text-zinc-950" : "text-zinc-300 hover:bg-white/10")}>
+          <Layers3 size={19} />
+        </button>
+        <button title="Settings" onClick={() => { setShowNewMenu(false); setActiveSection("settings"); }} className={cn("h-11 w-11 rounded-[8px] flex items-center justify-center", activeSection === "settings" ? "bg-lime-300 text-zinc-950" : "text-zinc-300 hover:bg-white/10")}>
+          <Settings size={19} />
+        </button>
+        <button title="Workspace" onClick={() => { setShowNewMenu(false); setActiveSection("workspace"); }} className={cn("h-11 w-11 rounded-[8px] flex items-center justify-center lg:mt-auto", activeSection === "workspace" ? "bg-white text-zinc-950" : "text-zinc-300 hover:bg-white/10")}>
+          <Wand2 size={19} />
+        </button>
       </aside>
 
-      <main className="lg:pl-72">
+      <main className="lg:pl-16">
         <header className="min-h-20 bg-[#f6f7f3]/90 backdrop-blur border-b border-zinc-200 sticky top-0 z-20 px-4 lg:px-8 py-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.2em] text-zinc-500">{tools.find((tool) => tool.id === project.mode)?.label}</p>
@@ -411,6 +403,10 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <StatePill state={project.state} />
+            <button onClick={() => { setShowNewMenu(false); setShowPreview(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+              <FileText size={17} />
+              Preview
+            </button>
             <button onClick={handleBuild} disabled={!spec.fields.length || isWorking} className="flex items-center gap-2 bg-zinc-950 text-white rounded-[8px] px-4 py-2.5 text-sm font-semibold disabled:opacity-40">
               {isWorking && project.state === "building" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
               Generate SM8F
@@ -446,7 +442,8 @@ export default function App() {
           />
         )}
         {activeSection === "projects" && <Projects projects={projects} activeProjectId={project.id} openProject={setActiveProjectId} />}
-        {activeSection === "settings" && <SettingsPanel />}
+        {activeSection === "settings" && <SettingsPanel hasOpenAiKey={hasOpenAiKey} onStatusChange={setHasOpenAiKey} />}
+        {showPreview && <PreviewModal spec={spec} onClose={() => setShowPreview(false)} />}
       </main>
     </div>
   );
@@ -486,7 +483,7 @@ function Workspace(props: {
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[minmax(360px,0.9fr)_minmax(560px,1.4fr)_360px] gap-5 p-4 lg:p-6">
+    <div className="grid grid-cols-1 xl:grid-cols-2 gap-5 p-4 lg:p-6">
       <section className="bg-white border border-zinc-200 rounded-[8px] min-h-[calc(100vh-7rem)] flex flex-col">
         <PanelTitle icon={MessageSquareText} title="AI chat" subtitle="Describe, revise, approve" />
         {!props.hasOpenAiKey && (
@@ -550,15 +547,10 @@ function Workspace(props: {
         </div>
       </section>
 
-      <section className="space-y-5">
+      <section className="space-y-5 min-w-0">
         <Metrics counts={props.fieldCounts} />
         <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
         <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
-      </section>
-
-      <section className="space-y-5">
-        <OutputPanel spec={props.spec} onBuild={props.onBuild} disabled={props.isWorking || !props.spec.fields.length} />
-        <PreviewPanel spec={props.spec} />
       </section>
     </div>
   );
@@ -730,6 +722,25 @@ function PreviewPanel({ spec }: { spec: FormSpec }) {
   );
 }
 
+function PreviewModal({ spec, onClose }: { spec: FormSpec; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[80] bg-zinc-950/50 p-4 lg:p-8" role="dialog" aria-modal="true">
+      <div className="mx-auto flex h-full max-w-5xl flex-col rounded-[8px] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4">
+          <div>
+            <h2 className="text-lg font-semibold">Report preview</h2>
+            <p className="text-sm text-zinc-500">DOCX sections and merge-field output structure</p>
+          </div>
+          <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-3 py-2 text-sm font-semibold">Close</button>
+        </div>
+        <div className="min-h-0 flex-1 overflow-auto p-5">
+          <PreviewPanel spec={spec} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InlineDesignPanel({ design, updateDesign, onLogo }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void }) {
   const update = (patch: Partial<DesignSettings>) => updateDesign({ ...design, ...patch });
   return (
@@ -881,15 +892,37 @@ function Projects({ projects, activeProjectId, openProject }: { projects: Projec
   );
 }
 
-function SettingsPanel() {
+function SettingsPanel({ hasOpenAiKey, onStatusChange }: { hasOpenAiKey: boolean; onStatusChange: (value: boolean) => void }) {
+  const [apiKey, setApiKey] = useState("");
+  const [message, setMessage] = useState("");
+  const saveKey = async () => {
+    const result = await saveOpenAiKey(apiKey);
+    setMessage(result.message);
+    onStatusChange(result.ok || hasOpenAiKey);
+    if (result.ok) setApiKey("");
+  };
   return (
     <div className="p-6">
       <div className="bg-white border border-zinc-200 rounded-[8px] p-6 max-w-2xl">
         <PanelTitle icon={Settings} title="Settings" subtitle="Environment and deployment checklist" />
-        <div className="mt-6 space-y-3 text-sm text-zinc-600">
-          <p><Check className="inline mr-2 text-lime-600" size={16} />Set `OPENAI_API_KEY` on the server or Vercel project.</p>
+        <div className="mt-6 space-y-4 text-sm text-zinc-600">
+          <div className="rounded-[8px] border border-zinc-200 p-4">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="font-semibold text-zinc-900">OpenAI API key</p>
+                <p className="text-xs text-zinc-500">{hasOpenAiKey ? "Configured for this server session." : "Not configured. Local Codex bridge will be used."}</p>
+              </div>
+              <span className={cn("rounded-full px-2 py-1 text-xs font-semibold", hasOpenAiKey ? "bg-lime-100 text-lime-800" : "bg-zinc-100 text-zinc-600")}>{hasOpenAiKey ? "Active" : "Local mode"}</span>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <input value={apiKey} onChange={(event) => setApiKey(event.target.value)} type="password" placeholder="sk-..." className="min-w-0 flex-1 rounded-[8px] border border-zinc-300 px-3 py-2 text-sm" />
+              <button onClick={saveKey} className="rounded-[8px] bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">Save</button>
+            </div>
+            {message && <p className="mt-2 text-xs text-zinc-500">{message}</p>}
+          </div>
+          <p><Check className="inline mr-2 text-lime-600" size={16} />For Vercel, store `OPENAI_API_KEY` in encrypted environment variables.</p>
           <p><Check className="inline mr-2 text-lime-600" size={16} />Set `APP_PASSWORD` for private admin access.</p>
-          <p><Sparkles className="inline mr-2 text-blue-600" size={16} />Uploaded files are session-only in V1; projects are stored in browser localStorage.</p>
+          <p><Sparkles className="inline mr-2 text-blue-600" size={16} />Projects are saved to the local server DB now; Vercel Postgres is the likely production database later.</p>
         </div>
       </div>
     </div>

@@ -1,4 +1,5 @@
 import { AiPlanResponse, AttachmentPayload, DesignSettings, FormSpec, ToolMode } from "../types";
+import type { ProjectRecord } from "../types";
 
 export type ReferenceFilePayload = AttachmentPayload;
 
@@ -76,6 +77,29 @@ export async function checkAdminAccess(password: string): Promise<boolean> {
 
   const data = await readJson<{ ok: boolean }>(response);
   return data.ok;
+}
+
+export async function loadProjectsFromDb(): Promise<ProjectRecord[]> {
+  const response = await fetch("/api/projects");
+  const data = await readJson<{ projects: ProjectRecord[] }>(response);
+  return data.projects || [];
+}
+
+export async function saveProjectsToDb(projects: ProjectRecord[]): Promise<void> {
+  await fetch("/api/projects", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ projects }),
+  });
+}
+
+export async function saveOpenAiKey(apiKey: string): Promise<{ ok: boolean; message: string }> {
+  const response = await fetch("/api/settings/openai-key", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ apiKey }),
+  });
+  return readJson(response);
 }
 
 export async function generateFormStructure(): Promise<FormSpec> {
