@@ -329,9 +329,48 @@ function docxOutputType(field) {
 
 function shouldRenderCheckboxList(field) {
   if (!field || !formFieldType(field).startsWith("Multiple Choice")) return false;
+  if (["multi_answer", "multi-answer", "checkbox"].includes(String(field.type || "").toLowerCase())) {
+    return Array.isArray(field.options) && field.options.length > 0;
+  }
   const output = String(docxOutputType(field)).toLowerCase();
   if (output === "raw") return false;
   return output === "checkboxlist" || (Array.isArray(field.options) && field.options.length > 0);
+}
+
+function reportValueForField(field) {
+  return shouldRenderCheckboxList(field)
+    ? `{CHECKLIST ${field.label}}`
+    : mergeField(mergeFieldName(field));
+}
+
+function fieldReportRow(field) {
+  return `${field.label}: ${reportValueForField(field)}`;
+}
+
+function sectionContentRows(section, fieldsByLabel) {
+  const rawLines = String(section.content || "").split("\n").map((line) => line.trim()).filter(Boolean);
+  const rows = [];
+
+  for (const line of rawLines) {
+    if (line.includes("{") || line.includes(":")) {
+      rows.push(line);
+      continue;
+    }
+
+    const parts = line.split(";").map((part) => part.trim()).filter(Boolean);
+    if (parts.length > 1) {
+      for (const part of parts) {
+        const field = fieldsByLabel.get(cleanLabel(part));
+        rows.push(field ? fieldReportRow(field) : part);
+      }
+      continue;
+    }
+
+    const field = fieldsByLabel.get(cleanLabel(line));
+    rows.push(field ? fieldReportRow(field) : line);
+  }
+
+  return rows;
 }
 
 function wordOperator(operator) {
@@ -607,9 +646,7 @@ function parseContentWithFields(text, runOptions = TABLE_VALUE_RUN) {
 
 function autoSections(spec) {
   const rows = spec.fields.map((field) => {
-    return shouldRenderCheckboxList(field)
-      ? `${field.label}: {CHECKLIST ${field.label}}`
-      : `${field.label}: ${mergeField(mergeFieldName(field))}`;
+    return fieldReportRow(field);
   });
 
   return [
@@ -931,7 +968,7 @@ async function buildDocx(spec) {
     }
 
     if (isTableSection) {
-      const rows = String(section.content || "").split("\n").filter((line) => line.trim());
+      const rows = sectionContentRows(section, fieldsByLabel);
       const chunks = chunkTableRows(rows, section, fieldsByLabel);
       for (const [chunkIndex, chunk] of chunks.entries()) {
         const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica, design);

@@ -246,6 +246,7 @@ export default function App() {
   const [showNewMenu, setShowNewMenu] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showDesign, setShowDesign] = useState(false);
   const [accessGranted, setAccessGranted] = useState(() => localStorage.getItem("autoform_access") === "ok");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -498,6 +499,10 @@ export default function App() {
               <MessageSquareText size={17} />
               AI chat
             </button>
+            <button onClick={() => { setShowNewMenu(false); setShowDesign(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+              <Paintbrush size={17} />
+              Design brief
+            </button>
             <button onClick={() => { setShowNewMenu(false); setShowPreview(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
               <FileText size={17} />
               Preview
@@ -524,18 +529,20 @@ export default function App() {
             hasOpenAiKey={hasOpenAiKey}
             error={error}
             updateSpec={updateSpec}
-            design={project.designSettings}
-            updateDesign={updateDesign}
-            onLogo={async (files) => {
-              const file = files?.[0];
-              if (!file) return;
-              const logo = await fileToAttachment(file);
-              updateDesign({ ...project.designSettings, logo });
-            }}
             fieldCounts={fieldCounts}
           />
         )}
-        {activeSection === "projects" && <Projects projects={projects} activeProjectId={project.id} openProject={setActiveProjectId} />}
+        {activeSection === "projects" && (
+          <Projects
+            projects={projects}
+            activeProjectId={project.id}
+            openProject={(projectId) => {
+              setActiveProjectId(projectId);
+              setActiveSection("workspace");
+              setShowNewMenu(false);
+            }}
+          />
+        )}
         {activeSection === "settings" && <SettingsPanel hasOpenAiKey={hasOpenAiKey} onStatusChange={setHasOpenAiKey} />}
         {showChat && (
           <ChatModal
@@ -551,6 +558,19 @@ export default function App() {
             hasOpenAiKey={hasOpenAiKey}
             error={error}
             onClose={() => setShowChat(false)}
+          />
+        )}
+        {showDesign && (
+          <DesignBriefModal
+            design={project.designSettings}
+            updateDesign={updateDesign}
+            onLogo={async (files) => {
+              const file = files?.[0];
+              if (!file) return;
+              const logo = await fileToAttachment(file);
+              updateDesign({ ...project.designSettings, logo });
+            }}
+            onClose={() => setShowDesign(false)}
           />
         )}
         {showPreview && <PreviewModal spec={spec} onClose={() => setShowPreview(false)} />}
@@ -586,16 +606,12 @@ function Workspace(props: {
   hasOpenAiKey: boolean;
   error: string;
   updateSpec: (spec: FormSpec) => void;
-  design: DesignSettings;
-  updateDesign: (design: DesignSettings) => void;
-  onLogo: (files: FileList | null) => void;
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
     <div className="min-h-[calc(100vh-5rem)] p-4 lg:p-6">
       <section className="space-y-5 min-w-0">
         <Metrics counts={props.fieldCounts} />
-        <InlineDesignPanel design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
         <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
       </section>
     </div>
@@ -973,11 +989,11 @@ function OptionsModal({ field, onSave, onClose }: { field: ServiceM8Field; onSav
           </div>
           <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-3 py-2 text-sm">Close</button>
         </div>
-        <div className="grid max-h-[65vh] grid-cols-1 gap-2 overflow-auto p-4 sm:grid-cols-2">
+        <div className="grid max-h-[70vh] grid-cols-1 gap-2 overflow-auto p-4 sm:grid-cols-2">
           {options.map((option, index) => (
-            <label key={index} className="text-xs text-zinc-500">
-              Option {index + 1}
-              <input value={option} onChange={(event) => updateOption(index, event.target.value)} className="mt-1 w-full rounded-[8px] border border-zinc-300 px-3 py-2 text-sm text-zinc-900" />
+            <label key={index} className="flex items-center gap-2 text-xs text-zinc-500">
+              <span className="w-14 shrink-0">Option {index + 1}</span>
+              <input value={option} onChange={(event) => updateOption(index, event.target.value)} className="min-w-0 flex-1 rounded-[8px] border border-zinc-300 px-2 py-1.5 text-sm text-zinc-900" />
             </label>
           ))}
         </div>
@@ -1061,6 +1077,70 @@ function PreviewModal({ spec, onClose }: { spec: FormSpec; onClose: () => void }
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-5">
           <PreviewPanel spec={spec} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void; onClose: () => void }) {
+  const update = (patch: Partial<DesignSettings>) => updateDesign({ ...design, ...patch });
+  return (
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/55 p-3 lg:p-6" role="dialog" aria-modal="true">
+      <div className="flex max-h-[86vh] w-full max-w-3xl flex-col rounded-[8px] bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-zinc-200 p-4">
+          <div className="flex items-center gap-3">
+            <div className="h-9 w-9 rounded-[8px] bg-zinc-950 text-lime-300 flex items-center justify-center">
+              <Paintbrush size={18} />
+            </div>
+            <div>
+              <h2 className="font-semibold">Design brief</h2>
+              <p className="text-xs text-zinc-500">Included in the AI form spec</p>
+            </div>
+          </div>
+          <button onClick={onClose} className="h-9 w-9 rounded-[8px] border border-zinc-300 bg-white text-zinc-700 flex items-center justify-center hover:bg-zinc-100" aria-label="Close design brief">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+          <label className="flex items-center justify-between gap-3 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+            Let AI choose design elements
+            <input type="checkbox" checked={!!design.aiChooseDesign} onChange={(event) => update({ aiChooseDesign: event.target.checked })} className="h-4 w-4 accent-lime-400" />
+          </label>
+          <Select
+            label="Style direction"
+            value={design.stylePreset || "ai"}
+            onChange={(stylePreset) => update({ stylePreset: stylePreset as DesignSettings["stylePreset"] })}
+            options={["ai", "clean_trade", "corporate", "source_replica", "minimal"]}
+          />
+          <label className="text-xs text-zinc-500">
+            Design instructions for AI
+            <textarea
+              value={design.designBrief || ""}
+              onChange={(event) => update({ designBrief: event.target.value })}
+              className="mt-1 h-28 w-full resize-none rounded-[8px] border border-zinc-300 p-3 text-sm text-zinc-900"
+              placeholder="Example: match our brand colours, use editable tables, formal compliance-report style..."
+            />
+          </label>
+          <div className="grid grid-cols-2 gap-3">
+            <label className="text-xs text-zinc-500">
+              Primary
+              <input type="color" value={design.primaryColor} onChange={(event) => update({ primaryColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+            </label>
+            <label className="text-xs text-zinc-500">
+              Accent
+              <input type="color" value={design.accentColor} onChange={(event) => update({ accentColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+            </label>
+          </div>
+          <label className="flex items-center gap-2 rounded-[8px] border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-700 cursor-pointer">
+            <Image size={16} />
+            Upload logo
+            <input className="hidden" type="file" accept=".png,.jpg,.jpeg" onChange={(event) => onLogo(event.target.files)} />
+          </label>
+          {design.logo && <p className="text-xs text-zinc-500">{design.logo.name}</p>}
+        </div>
+        <div className="flex justify-end border-t border-zinc-200 p-4">
+          <button onClick={onClose} className="rounded-[8px] bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">Done</button>
         </div>
       </div>
     </div>
@@ -1204,12 +1284,18 @@ function Projects({ projects, activeProjectId, openProject }: { projects: Projec
         <PanelTitle icon={Layers3} title="Projects" subtitle="Local browser project history" />
         <div className="divide-y divide-zinc-200">
           {projects.map((project) => (
-            <button key={project.id} onClick={() => openProject(project.id)} className={cn("w-full p-4 flex items-center justify-between text-left", activeProjectId === project.id && "bg-lime-50")}>
+            <button key={project.id} onClick={() => openProject(project.id)} className={cn("w-full p-4 flex items-center justify-between text-left transition-colors hover:bg-zinc-50", activeProjectId === project.id && "bg-lime-50 hover:bg-lime-50")}>
               <div>
-                <p className="font-semibold">{project.title}</p>
+                <div className="flex items-center gap-2">
+                  <p className="font-semibold">{project.title}</p>
+                  {activeProjectId === project.id && <span className="rounded-full bg-lime-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-800">Open</span>}
+                </div>
                 <p className="text-xs text-zinc-500">{project.mode} · {new Date(project.updatedAt).toLocaleString()}</p>
               </div>
-              <ChevronRight size={18} />
+              <span className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                Open
+                <ChevronRight size={18} />
+              </span>
             </button>
           ))}
         </div>
