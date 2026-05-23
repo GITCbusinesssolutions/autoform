@@ -8,6 +8,7 @@ import {
   Download,
   FileArchive,
   FileText,
+  GripVertical,
   Image,
   Layers3,
   Loader2,
@@ -740,9 +741,22 @@ function Metrics({ counts }: { counts: { total: number; required: number; condit
 function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: FormSpec) => void }) {
   const [optionsIndex, setOptionsIndex] = useState<number | null>(null);
   const [detailsIndex, setDetailsIndex] = useState<number | null>(null);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const updateField = (index: number, patch: Partial<ServiceM8Field>) => {
     const fields = spec.fields.map((field, fieldIndex) => (fieldIndex === index ? { ...field, ...patch } : field));
     updateSpec({ ...spec, fields });
+  };
+
+  const orderedFields = (fields: ServiceM8Field[]) =>
+    fields.map((field, index) => ({ ...field, sortOrder: index + 1 }));
+
+  const reorderFields = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0) return;
+    const fields = [...spec.fields];
+    const [moved] = fields.splice(fromIndex, 1);
+    fields.splice(toIndex, 0, moved);
+    updateSpec({ ...spec, fields: orderedFields(fields) });
   };
 
   const addField = () => {
@@ -766,6 +780,7 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
       <div className="overflow-auto max-h-[56vh]">
         <table className="w-full table-fixed text-sm">
           <colgroup>
+            <col className="w-[40px]" />
             <col className="w-[34%]" />
             <col className="w-[120px]" />
             <col className="w-[120px]" />
@@ -774,6 +789,7 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
           </colgroup>
           <thead className="sticky top-0 bg-zinc-950 text-white">
             <tr>
+              <th className="p-2" aria-label="Reorder" />
               <th className="text-left p-2 font-medium">Question</th>
               <th className="text-left p-2 font-medium">Type</th>
               <th className="text-left p-2 font-medium">Options</th>
@@ -783,7 +799,45 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
           </thead>
           <tbody>
             {spec.fields.map((field, index) => (
-              <tr key={`${field.label}-${index}`} className="border-b border-zinc-200 align-top">
+              <tr
+                key={`${field.label}-${field.sortOrder}-${index}`}
+                onDragOver={(event) => {
+                  if (draggedIndex === null || draggedIndex === index) return;
+                  event.preventDefault();
+                  setDragOverIndex(index);
+                }}
+                onDragLeave={() => setDragOverIndex(null)}
+                onDrop={(event) => {
+                  event.preventDefault();
+                  if (draggedIndex !== null) reorderFields(draggedIndex, index);
+                  setDraggedIndex(null);
+                  setDragOverIndex(null);
+                }}
+                className={cn(
+                  "border-b border-zinc-200 align-top transition-colors",
+                  draggedIndex === index && "opacity-45",
+                  dragOverIndex === index && draggedIndex !== index && "bg-lime-50",
+                )}
+              >
+                <td className="p-2 text-center">
+                  <button
+                    draggable
+                    onDragStart={(event) => {
+                      setDraggedIndex(index);
+                      event.dataTransfer.effectAllowed = "move";
+                      event.dataTransfer.setData("text/plain", String(index));
+                    }}
+                    onDragEnd={() => {
+                      setDraggedIndex(null);
+                      setDragOverIndex(null);
+                    }}
+                    className="inline-flex h-8 w-7 cursor-grab items-center justify-center rounded border border-transparent text-zinc-400 hover:border-zinc-200 hover:bg-zinc-50 hover:text-zinc-700 active:cursor-grabbing"
+                    title="Drag to reorder"
+                    aria-label={`Drag ${field.label} to reorder`}
+                  >
+                    <GripVertical size={16} />
+                  </button>
+                </td>
                 <td className="p-2">
                   <div className="flex items-center gap-1">
                     <input className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} />
