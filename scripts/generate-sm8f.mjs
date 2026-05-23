@@ -36,6 +36,34 @@ const TABLE_VALUE_RUN = { size: 20 };
 const REPLICA_VALUE_RUN = { size: 18, font: "Arial", color: "404040" };
 const REPLICA_LABEL_RUN = { size: 18, font: "Arial", color: "404040" };
 
+function hexColor(value, fallback) {
+  const cleaned = String(value || "").replace(/[^a-fA-F0-9]/g, "").slice(0, 6);
+  return cleaned.length === 6 ? cleaned.toUpperCase() : fallback;
+}
+
+function designSettings(spec) {
+  const design = spec.designSettings || {};
+  return {
+    companyName: design.companyName || "Autoform",
+    designBrief: design.designBrief || "",
+    primaryColor: hexColor(design.primaryColor, "111827"),
+    accentColor: hexColor(design.accentColor, "9FDB1D"),
+    headerColor: hexColor(design.headerColor || design.primaryColor, "3F3F46"),
+    footerColor: hexColor(design.footerColor || design.primaryColor, "111827"),
+    tableHeaderColor: hexColor(design.tableHeaderColor || design.headerColor || design.primaryColor, "3F3F46"),
+    tableBorderColor: hexColor(design.tableBorderColor, "D4D4D8"),
+    fontFamily: design.fontFamily || "Arial",
+    bodyFontSize: Number(design.bodyFontSize || 9),
+    headingStyle: design.headingStyle || "bar",
+    tableStyle: design.tableStyle || "source",
+    logoPlacement: design.logoPlacement || "left",
+    logoWidth: Number(design.logoWidth || 150),
+    pageMargin: Number(design.pageMargin || 720),
+    headerText: design.headerText || spec.title || "ServiceM8 Form",
+    footerText: design.footerText || "Commercial-in-confidence",
+  };
+}
+
 class FieldCharAttributes extends XmlAttributeComponent {
   constructor(type) {
     super({ type });
@@ -275,9 +303,10 @@ function docxOutputType(field) {
 }
 
 function shouldRenderCheckboxList(field) {
-  return !!field &&
-    formFieldType(field).startsWith("Multiple Choice") &&
-    String(docxOutputType(field)).toLowerCase() === "checkboxlist";
+  if (!field || !formFieldType(field).startsWith("Multiple Choice")) return false;
+  const output = String(docxOutputType(field)).toLowerCase();
+  if (output === "raw") return false;
+  return output === "checkboxlist" || (Array.isArray(field.options) && field.options.length > 0);
 }
 
 function wordOperator(operator) {
@@ -388,6 +417,7 @@ function normalizeSpec(spec) {
       options: Array.isArray(field.options) ? field.options.map((option) => String(option || "").trim()).filter(Boolean) : undefined,
     })),
     docxContent: spec.docxContent || {},
+    designSettings: spec.designSettings || {},
   };
 }
 
@@ -516,7 +546,9 @@ function parseContentWithFields(text, runOptions = TABLE_VALUE_RUN) {
 
 function autoSections(spec) {
   const rows = spec.fields.map((field) => {
-    return `${field.label}: ${mergeField(mergeFieldName(field))}`;
+    return shouldRenderCheckboxList(field)
+      ? `${field.label}: {CHECKLIST ${field.label}}`
+      : `${field.label}: ${mergeField(mergeFieldName(field))}`;
   });
 
   return [
@@ -591,11 +623,16 @@ function chunkTableRows(rows, section, fieldsByLabel) {
   return chunks;
 }
 
-function buildTableRows(rows, section, fieldsByLabel, replica = false) {
+function buildTableRows(rows, section, fieldsByLabel, replica = false, design = designSettings({})) {
   const labelWidth = replica ? 2300 : 3100;
   const valueWidth = replica ? 7060 : 6260;
-  const labelRun = replica ? REPLICA_LABEL_RUN : { color: "334155", size: 20 };
-  const valueRun = replica ? REPLICA_VALUE_RUN : TABLE_VALUE_RUN;
+  const bodySize = Math.max(16, Math.round(design.bodyFontSize * 2));
+  const labelRun = replica
+    ? { ...REPLICA_LABEL_RUN, font: design.fontFamily, color: design.primaryColor, size: bodySize }
+    : { color: design.primaryColor, size: bodySize, font: design.fontFamily };
+  const valueRun = replica
+    ? { ...REPLICA_VALUE_RUN, font: design.fontFamily, size: bodySize }
+    : { ...TABLE_VALUE_RUN, size: bodySize, font: design.fontFamily };
   const cellMargins = replica
     ? { top: 34, bottom: 34, left: 90, right: 90 }
     : { top: 100, bottom: 100, left: 120, right: 120 };
@@ -611,12 +648,24 @@ function buildTableRows(rows, section, fieldsByLabel, replica = false) {
           })],
           width: { size: labelWidth, type: WidthType.DXA },
           shading: { fill: section.isStandardHeader ? "EDEDED" : replica ? "FFFFFF" : index % 2 === 0 ? "F8FAFC" : "FFFFFF" },
+          borders: {
+            top: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            bottom: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            left: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            right: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+          },
           margins: cellMargins,
           verticalAlign: VerticalAlign.CENTER,
         }),
         new TableCell({
           children: tableValueParagraphs(label.trim(), value, fieldsByLabel, valueRun),
           width: { size: valueWidth, type: WidthType.DXA },
+          borders: {
+            top: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            bottom: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            left: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+            right: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+          },
           margins: cellMargins,
           verticalAlign: VerticalAlign.CENTER,
         }),
@@ -625,7 +674,7 @@ function buildTableRows(rows, section, fieldsByLabel, replica = false) {
   });
 }
 
-function buildTableHeadingRow(title, replica = false) {
+function buildTableHeadingRow(title, replica = false, design = designSettings({})) {
   return new TableRow({
     children: [
       new TableCell({
@@ -633,13 +682,19 @@ function buildTableHeadingRow(title, replica = false) {
           children: [new TextRun({
             text: title,
             bold: true,
-            color: replica ? "FFFFFF" : "334155",
+            color: "FFFFFF",
             size: replica ? 20 : 24,
-            font: replica ? "Arial" : undefined,
+            font: design.fontFamily,
           })],
         })],
         columnSpan: 2,
-        shading: { fill: replica ? "3F3F3F" : "E2E8F0" },
+        shading: { fill: design.tableHeaderColor },
+        borders: {
+          top: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+          bottom: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+          left: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+          right: { style: BorderStyle.SINGLE, color: design.tableBorderColor, size: 4 },
+        },
         margins: replica
           ? { top: 75, bottom: 75, left: 90, right: 90 }
           : { top: 120, bottom: 120, left: 120, right: 120 },
@@ -650,6 +705,7 @@ function buildTableHeadingRow(title, replica = false) {
 
 async function replicaIntro(spec) {
   const children = [];
+  const design = designSettings(spec);
   let logoChildren;
   if (spec.docxContent.logoPath) {
     try {
@@ -663,7 +719,7 @@ async function replicaIntro(spec) {
             new ImageRun({
               type: "png",
               data: logoData,
-              transformation: { width: 150, height: 69 },
+              transformation: { width: design.logoWidth, height: Math.round(design.logoWidth * 0.46) },
               altText: {
                 title: "Ambrose Construct Group logo",
                 description: "Ambrose Construct Group logo extracted from the source PDF",
@@ -682,13 +738,13 @@ async function replicaIntro(spec) {
   logoChildren ||= [
     new Paragraph({
       children: [
-        new TextRun({ text: "AMBROSE ", bold: true, color: "6D6E71", size: 21, font: "Arial" }),
-        new TextRun({ text: "CONSTRUCT", bold: true, color: "A8D51E", size: 21, font: "Arial" }),
+        new TextRun({ text: `${design.companyName} `, bold: true, color: design.primaryColor, size: 21, font: design.fontFamily }),
+        new TextRun({ text: "AUTOFORM", bold: true, color: design.accentColor, size: 21, font: design.fontFamily }),
       ],
       spacing: { after: 0 },
     }),
     new Paragraph({
-      children: [new TextRun({ text: "GROUP", bold: true, color: "8A8C90", size: 13, font: "Arial" })],
+      children: [new TextRun({ text: design.designBrief, color: design.primaryColor, size: 13, font: design.fontFamily })],
       indent: { left: 470 },
       spacing: { before: 0, after: 0 },
     }),
@@ -722,14 +778,12 @@ async function replicaIntro(spec) {
         new TableCell({
           children: [
             new Paragraph({
-              children: [new TextRun({ text: "Ambrose Construct Group Pty Ltd", bold: true, font: "Arial", size: 20, color: "404040" })],
+              children: [new TextRun({ text: design.companyName, bold: true, font: design.fontFamily, size: 20, color: design.primaryColor })],
               alignment: AlignmentType.RIGHT,
             }),
             new Paragraph({
               children: [
-                new TextRun({ text: "www.ambrose", font: "Arial", size: 14, color: "404040" }),
-                new TextRun({ text: "construct", font: "Arial", size: 14, color: "A8D51E", bold: true }),
-                new TextRun({ text: ".com.au", font: "Arial", size: 14, color: "404040" }),
+                new TextRun({ text: design.headerText, font: design.fontFamily, size: 14, color: design.primaryColor }),
               ],
               alignment: AlignmentType.RIGHT,
             }),
@@ -752,9 +806,9 @@ async function replicaIntro(spec) {
     rows: [new TableRow({
       children: [new TableCell({
         children: [new Paragraph({
-          children: [new TextRun({ text: spec.title, bold: true, color: "FFFFFF", font: "Arial", size: 30 })],
+          children: [new TextRun({ text: spec.title, bold: true, color: "FFFFFF", font: design.fontFamily, size: 30 })],
         })],
-        shading: { fill: "555555" },
+        shading: { fill: design.headerColor },
         margins: { top: 140, bottom: 140, left: 120, right: 120 },
       })],
     })],
@@ -766,6 +820,7 @@ async function replicaIntro(spec) {
 
 async function buildDocx(spec) {
   const normalized = normalizeSpec(spec);
+  const design = designSettings(normalized);
   const replica = isReplicaSpec(normalized);
   const sections = Array.isArray(normalized.docxContent.sections) && normalized.docxContent.sections.length
     ? normalized.docxContent.sections
@@ -776,12 +831,12 @@ async function buildDocx(spec) {
     ? await replicaIntro(normalized)
     : [
       new Paragraph({
-        children: [new TextRun({ text: normalized.title, bold: true, size: 34, color: "0F172A" })],
+        children: [new TextRun({ text: normalized.title, bold: true, size: 34, color: design.primaryColor, font: design.fontFamily })],
         alignment: AlignmentType.CENTER,
         spacing: { before: 160, after: 160 },
       }),
       new Paragraph({
-        children: [new TextRun({ text: normalized.description, italics: true, color: "64748B", size: 22 })],
+        children: [new TextRun({ text: normalized.description || design.designBrief, italics: true, color: design.footerColor, size: 22, font: design.fontFamily })],
         spacing: { after: 360 },
       }),
     ];
@@ -793,15 +848,15 @@ async function buildDocx(spec) {
 
     if (replica && section.isStandardHeader) {
       children.push(new Paragraph({
-        children: [new TextRun({ text: String(section.title || "").toUpperCase(), bold: true, font: "Arial", size: 22, color: "3F3F3F" })],
+        children: [new TextRun({ text: String(section.title || "").toUpperCase(), bold: true, font: design.fontFamily, size: 22, color: design.primaryColor })],
         keepNext: true,
         spacing: { before: 90, after: 55 },
-        border: { bottom: { color: "BDBDBD", space: 1, style: BorderStyle.SINGLE, size: 10 } },
+        border: { bottom: { color: design.tableBorderColor, space: 1, style: BorderStyle.SINGLE, size: 10 } },
       }));
     }
 
     if (!section.isStandardHeader && !section.isStandardFooter && !useTableHeading) {
-      const headingRunOptions = { bold: true, size: 26, color: "334155" };
+      const headingRunOptions = { bold: true, size: 26, color: design.primaryColor, font: design.fontFamily };
       const headingChildren = hasSectionConditions
         ? conditionalSectionStartRuns(section, fieldsByLabel, headingRunOptions)
         : [new TextRun({ text: section.title, ...headingRunOptions })];
@@ -810,7 +865,7 @@ async function buildDocx(spec) {
         children: headingChildren,
         keepNext: true,
         spacing: { before: replica ? 180 : 280, after: replica ? 80 : 120 },
-        border: { bottom: { color: replica ? "BDBDBD" : "CBD5E1", space: 1, style: BorderStyle.SINGLE, size: replica ? 10 : 6 } },
+        border: { bottom: { color: design.tableBorderColor, space: 1, style: BorderStyle.SINGLE, size: replica ? 10 : 6 } },
       }));
     }
 
@@ -818,8 +873,8 @@ async function buildDocx(spec) {
       const rows = String(section.content || "").split("\n").filter((line) => line.trim());
       const chunks = chunkTableRows(rows, section, fieldsByLabel);
       for (const [chunkIndex, chunk] of chunks.entries()) {
-        const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica);
-        if (useTableHeading && chunkIndex === 0) tableRows.unshift(buildTableHeadingRow(section.title, replica));
+        const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica, design);
+        if (useTableHeading && chunkIndex === 0) tableRows.unshift(buildTableHeadingRow(section.title, replica, design));
 
         children.push(new Table({
           width: { size: 9360, type: WidthType.DXA },
@@ -832,14 +887,14 @@ async function buildDocx(spec) {
     } else {
       for (const line of String(section.content || "").split("\n")) {
         children.push(new Paragraph({
-          children: parseContentWithFields(line),
+          children: parseContentWithFields(line, { font: design.fontFamily, size: Math.max(16, Math.round(design.bodyFontSize * 2)), color: design.primaryColor }),
           spacing: { after: 120 },
           alignment: section.isStandardFooter ? AlignmentType.RIGHT : undefined,
         }));
       }
     }
 
-    const conditionalEnd = conditionalSectionEndParagraph(section, fieldsByLabel, { size: 20, color: "334155" });
+    const conditionalEnd = conditionalSectionEndParagraph(section, fieldsByLabel, { size: 20, color: design.primaryColor, font: design.fontFamily });
     if (conditionalEnd) children.push(conditionalEnd);
   }
 
@@ -847,16 +902,16 @@ async function buildDocx(spec) {
     styles: {
       default: {
         document: {
-          run: { font: "Calibri", size: 22, color: "1F2937" },
+          run: { font: design.fontFamily, size: Math.max(16, Math.round(design.bodyFontSize * 2)), color: design.primaryColor },
         },
       },
     },
     sections: [{
-      properties: { page: { margin: replica ? { top: 420, right: 720, bottom: 900, left: 720 } : { top: 1080, right: 1080, bottom: 1080, left: 1080 } } },
+      properties: { page: { margin: { top: replica ? 420 : design.pageMargin, right: design.pageMargin, bottom: replica ? 900 : design.pageMargin, left: design.pageMargin } } },
       headers: {
         default: new Header({
           children: [new Paragraph({
-            children: replica ? [] : [new TextRun({ text: normalized.title, bold: true, size: 20, color: "475569" })],
+            children: replica ? [] : [new TextRun({ text: design.headerText || normalized.title, bold: true, size: 20, color: design.headerColor, font: design.fontFamily })],
           })],
         }),
       },
@@ -865,10 +920,10 @@ async function buildDocx(spec) {
           children: [new Paragraph({
             children: replica
               ? [
-                new TextRun({ text: "Commercial-in-confidence", font: "Arial", size: 16, color: "000000" }),
-                new TextRun({ text: "\t\t\t\t\t\t\t\t\tPage", font: "Arial", size: 16, color: "000000" }),
+                new TextRun({ text: design.footerText, font: design.fontFamily, size: 16, color: design.footerColor }),
+                new TextRun({ text: "\t\t\t\t\t\t\t\t\tPage", font: design.fontFamily, size: 16, color: design.footerColor }),
               ]
-              : [new TextRun({ text: "Page ", color: "64748B" }), new SimpleField("PAGE")],
+              : [new TextRun({ text: `${design.footerText} · Page `, color: design.footerColor, font: design.fontFamily }), new SimpleField("PAGE")],
             alignment: replica ? AlignmentType.LEFT : AlignmentType.CENTER,
           })],
         }),
