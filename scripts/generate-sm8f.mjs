@@ -348,9 +348,89 @@ function fieldReportRow(field) {
   return `${field.label}: ${reportValueForField(field)}`;
 }
 
-function sectionContentRows(section, fieldsByLabel) {
+function textTokens(value) {
+  return new Set(String(value || "")
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9]+/g, " ")
+    .split(/\s+/)
+    .filter((token) => token.length > 2)
+    .map((token) => {
+      const aliases = {
+        est: "estimated",
+        eta: "quote",
+        tech: "technician",
+        tag: "tag",
+        photos: "photo",
+        before: "before",
+        after: "after",
+        completion: "completion",
+        completed: "completed",
+      };
+      return aliases[token] || token;
+    }));
+}
+
+function tokenScore(source, target) {
+  const sourceTokens = textTokens(source);
+  const targetTokens = textTokens(target);
+  let score = 0;
+  for (const token of sourceTokens) {
+    if (targetTokens.has(token)) score += 1;
+  }
+  return score;
+}
+
+function bestFieldForText(text, fieldsByLabel, fields = []) {
+  const exact = fieldsByLabel.get(cleanLabel(text));
+  if (exact) return exact;
+
+  let best;
+  let bestScore = 0;
+  for (const field of fields) {
+    const score = tokenScore(text, `${field.label} ${field.additionalDetails || ""}`);
+    if (score > bestScore) {
+      best = field;
+      bestScore = score;
+    }
+  }
+
+  return bestScore >= 2 ? best : undefined;
+}
+
+function sectionFieldScore(section, field) {
+  const sectionText = `${section.title || ""} ${section.content || ""}`;
+  const fieldText = `${field.label || ""} ${field.additionalDetails || ""}`;
+  let score = tokenScore(sectionText, fieldText);
+  const title = String(section.title || "").toLowerCase();
+  const label = String(field.label || "").toLowerCase();
+  const details = String(field.additionalDetails || "").toLowerCase();
+
+  if (title.includes("arrival") && details.includes("before")) score += 4;
+  if (title.includes("job detail") && /service|category|technician|attendance|start/.test(label)) score += 3;
+  if (title.includes("time") && /time|variation|notified|ack|estimated|est/.test(label)) score += 4;
+  if (title.includes("works") && /works|delay|system|status|exit/.test(label)) score += 4;
+  if (title.includes("additional") && /minor|major|urgent|eta|quote/.test(label)) score += 4;
+  if (title.includes("compliance") && /test tag|emergency lighting/.test(label)) score += 5;
+  if (title.includes("completion") && /completion|return|finish|after|close out/.test(label)) score += 4;
+  if (title.includes("footer") || title.includes("header")) score = 0;
+
+  return score;
+}
+
+function inferredSectionFields(section, fields = [], assignedLabels = new Set()) {
+  return fields
+    .filter((field) => !assignedLabels.has(cleanLabel(field.label)))
+    .map((field) => ({ field, score: sectionFieldScore(section, field) }))
+    .filter(({ score }) => score >= 3)
+    .sort((a, b) => Number(a.field.sortOrder || 0) - Number(b.field.sortOrder || 0))
+    .map(({ field }) => field);
+}
+
+function sectionContentRows(section, fieldsByLabel, fields = [], assignedLabels = new Set()) {
   const rawLines = String(section.content || "").split("\n").map((line) => line.trim()).filter(Boolean);
   const rows = [];
+  let fieldRowCount = 0;
 
   for (const line of rawLines) {
     if (line.includes("{") || line.includes(":")) {
@@ -361,14 +441,36 @@ function sectionContentRows(section, fieldsByLabel) {
     const parts = line.split(";").map((part) => part.trim()).filter(Boolean);
     if (parts.length > 1) {
       for (const part of parts) {
-        const field = fieldsByLabel.get(cleanLabel(part));
-        rows.push(field ? fieldReportRow(field) : part);
+        const field = bestFieldForText(part, fieldsByLabel, fields);
+        if (field) {
+          rows.push(fieldReportRow(field));
+          assignedLabels.add(cleanLabel(field.label));
+          fieldRowCount += 1;
+        } else {
+          rows.push(part);
+        }
       }
       continue;
     }
 
-    const field = fieldsByLabel.get(cleanLabel(line));
-    rows.push(field ? fieldReportRow(field) : line);
+    const exactField = fieldsByLabel.get(cleanLabel(line));
+    const looksLikeNarrative = /,|\band\b/i.test(line);
+    const field = exactField || (looksLikeNarrative ? undefined : bestFieldForText(line, fieldsByLabel, fields));
+    if (field) {
+      rows.push(fieldReportRow(field));
+      assignedLabels.add(cleanLabel(field.label));
+      fieldRowCount += 1;
+    } else {
+      rows.push(line);
+    }
+  }
+
+  if (fieldRowCount === 0 && !section.isStandardHeader && !section.isStandardFooter) {
+    const inferred = inferredSectionFields(section, fields, assignedLabels);
+    if (inferred.length) {
+      for (const field of inferred) assignedLabels.add(cleanLabel(field.label));
+      return inferred.map(fieldReportRow);
+    }
   }
 
   return rows;
@@ -934,6 +1036,7 @@ async function buildDocx(spec) {
     ? normalized.docxContent.sections
     : autoSections(normalized);
   const fieldsByLabel = fieldLookup(normalized.fields);
+  const assignedDocxLabels = new Set();
 
   const children = replica
     ? await replicaIntro(normalized)
@@ -978,7 +1081,7 @@ async function buildDocx(spec) {
     }
 
     if (isTableSection) {
-      const rows = sectionContentRows(section, fieldsByLabel);
+      const rows = sectionContentRows(section, fieldsByLabel, normalized.fields, assignedDocxLabels);
       const chunks = chunkTableRows(rows, section, fieldsByLabel);
       for (const [chunkIndex, chunk] of chunks.entries()) {
         const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica, design);
