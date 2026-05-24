@@ -319,6 +319,7 @@ export default function App() {
 
   const applyPlan = (plan: AiPlanResponse, baseMessages = project.messages, state: GenerationState = "draft") => {
     const normalizedSpec = normalizeFormSpecLabels(plan.spec);
+    const mergedDesign = { ...project.designSettings, ...(normalizedSpec.designSettings || {}) };
     const message: ChatMessage = {
       id: uid("msg"),
       role: "assistant",
@@ -327,7 +328,8 @@ export default function App() {
     };
     updateProject({
       title: normalizedSpec.title || project.title,
-      spec: { ...normalizedSpec, designSettings: { ...project.designSettings, ...(normalizedSpec.designSettings || {}) } },
+      designSettings: mergedDesign,
+      spec: { ...normalizedSpec, designSettings: mergedDesign },
       messages: [...baseMessages, message],
       state: plan.clarificationQuestions.length ? "needsClarification" : state,
     });
@@ -530,6 +532,8 @@ export default function App() {
             hasOpenAiKey={hasOpenAiKey}
             error={error}
             updateSpec={updateSpec}
+            design={project.designSettings}
+            updateDesign={updateDesign}
             fieldCounts={fieldCounts}
           />
         )}
@@ -607,13 +611,15 @@ function Workspace(props: {
   hasOpenAiKey: boolean;
   error: string;
   updateSpec: (spec: FormSpec) => void;
+  design: DesignSettings;
+  updateDesign: (design: DesignSettings) => void;
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
   return (
     <div className="min-h-[calc(100vh-5rem)] p-4 lg:p-6">
       <section className="space-y-5 min-w-0">
         <Metrics counts={props.fieldCounts} />
-        <SpecEditor spec={props.spec} updateSpec={props.updateSpec} />
+        <SpecEditor spec={props.spec} updateSpec={props.updateSpec} design={props.design} updateDesign={props.updateDesign} />
       </section>
     </div>
   );
@@ -755,7 +761,11 @@ function Metrics({ counts }: { counts: { total: number; required: number; condit
   );
 }
 
-function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: FormSpec) => void }) {
+function hasOptionChoices(field: ServiceM8Field) {
+  return ["select", "checkbox", "multi_answer"].includes(field.type);
+}
+
+function SpecEditor({ spec, updateSpec, design, updateDesign }: { spec: FormSpec; updateSpec: (spec: FormSpec) => void; design: DesignSettings; updateDesign: (design: DesignSettings) => void }) {
   const [optionsIndex, setOptionsIndex] = useState<number | null>(null);
   const [detailsIndex, setDetailsIndex] = useState<number | null>(null);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -789,26 +799,29 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
   return (
     <div className="bg-white border border-zinc-200 rounded-[8px] overflow-hidden">
       <PanelTitle icon={TableProperties} title="Editable form spec" subtitle="Fields, options, required states and skip logic" />
-      <div className="p-4 grid grid-cols-3 gap-3 border-b border-zinc-200">
+      <div className="p-4 grid grid-cols-1 gap-3 border-b border-zinc-200 md:grid-cols-4">
         <TextInput label="Title" value={spec.title} onChange={(title) => updateSpec({ ...spec, title })} />
         <TextInput label="Badge" value={spec.badgeName} onChange={(badgeName) => updateSpec({ ...spec, badgeName: cleanBadge(badgeName) })} />
         <TextInput label="Description" value={spec.description} onChange={(description) => updateSpec({ ...spec, description })} />
+        <TextInput label="Company / client" value={design.companyName} onChange={(companyName) => updateDesign({ ...design, companyName })} />
       </div>
       <div className="overflow-auto max-h-[56vh]">
         <table className="w-full table-fixed text-sm">
           <colgroup>
             <col className="w-[40px]" />
-            <col className="w-[34%]" />
+            <col className="w-[26%]" />
             <col className="w-[120px]" />
-            <col className="w-[120px]" />
+            <col className="w-[130px]" />
+            <col className="w-[112px]" />
             <col className="w-[56px]" />
-            <col className="w-[380px]" />
+            <col className="w-[340px]" />
           </colgroup>
           <thead className="sticky top-0 bg-zinc-950 text-white">
             <tr>
               <th className="p-2" aria-label="Reorder" />
               <th className="text-left p-2 font-medium">Question</th>
               <th className="text-left p-2 font-medium">Type</th>
+              <th className="text-left p-2 font-medium">Guidance</th>
               <th className="text-left p-2 font-medium">Options</th>
               <th className="text-left p-2 font-medium">Req</th>
               <th className="text-left p-2 font-medium">Condition</th>
@@ -858,14 +871,6 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
                 <td className="p-2">
                   <div className="flex items-center gap-1">
                     <input className="min-w-0 flex-1 rounded border border-zinc-200 px-2 py-1" value={field.label} onChange={(event) => updateField(index, { label: event.target.value })} />
-                    <button
-                      onClick={() => setDetailsIndex(index)}
-                      className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded border text-zinc-600 hover:bg-zinc-50", field.additionalDetails ? "border-lime-300 bg-lime-50" : "border-zinc-200")}
-                      title={field.additionalDetails ? "Edit guidance" : "Add guidance"}
-                      aria-label={field.additionalDetails ? `Edit guidance for ${field.label}` : `Add guidance for ${field.label}`}
-                    >
-                      <Pencil size={14} />
-                    </button>
                   </div>
                 </td>
                 <td className="p-2">
@@ -874,10 +879,25 @@ function SpecEditor({ spec, updateSpec }: { spec: FormSpec; updateSpec: (spec: F
                   </select>
                 </td>
                 <td className="p-2">
-                  <button onClick={() => setOptionsIndex(index)} className="inline-flex w-full items-center justify-center gap-1 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50">
+                  <button
+                    onClick={() => setDetailsIndex(index)}
+                    className={cn("inline-flex w-full items-center justify-center gap-1 rounded border px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50", field.additionalDetails ? "border-lime-300 bg-lime-50" : "border-zinc-200")}
+                    title={field.additionalDetails ? "Edit guidance" : "Add guidance"}
+                    aria-label={field.additionalDetails ? `Edit guidance for ${field.label}` : `Add guidance for ${field.label}`}
+                  >
                     <Pencil size={12} />
-                    <span className="truncate">{(field.options || []).length ? `${field.options?.length} options` : "Options"}</span>
+                    <span>{field.additionalDetails ? "Edit guide" : "Add guide"}</span>
                   </button>
+                </td>
+                <td className="p-2">
+                  {hasOptionChoices(field) ? (
+                    <button onClick={() => setOptionsIndex(index)} className="inline-flex w-full items-center justify-center gap-1 rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-700 hover:bg-zinc-50">
+                      <Pencil size={12} />
+                      <span className="truncate">{(field.options || []).length ? `${field.options?.length} options` : "Options"}</span>
+                    </button>
+                  ) : (
+                    <span className="block rounded border border-transparent px-2 py-1 text-center text-xs text-zinc-400">-</span>
+                  )}
                 </td>
                 <td className="p-2 text-center">
                   <input type="checkbox" checked={field.required} onChange={(event) => updateField(index, { required: event.target.checked })} />
@@ -935,8 +955,9 @@ function ConditionEditor({ fields, currentIndex = -1, condition, onChange }: { f
   const selectedField = availableFields.find((field) => field.label === value.questionLabel);
   const options = selectedField?.options || [];
   const useCustomValue = !!options.length && (!!value.value && !options.includes(value.value));
+  const hasCondition = !!value.questionLabel;
   return (
-    <div className="grid max-w-[360px] grid-cols-[130px_104px_120px] gap-1">
+    <div className={cn("grid gap-1", hasCondition ? "max-w-[340px] grid-cols-[128px_98px_110px]" : "max-w-[160px] grid-cols-1")}>
       <select
         className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs"
         value={value.questionLabel}
@@ -945,17 +966,21 @@ function ConditionEditor({ fields, currentIndex = -1, condition, onChange }: { f
         <option value="">No condition</option>
         {availableFields.map((field) => <option key={field.label} value={field.label}>{field.label}</option>)}
       </select>
-      <select className="min-w-0 rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
-        {operatorOptions.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}
-      </select>
-      {options.length && !useCustomValue ? (
-        <select className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" value={value.value} onChange={(event) => onChange({ ...value, value: event.target.value === "__other__" ? "__other__" : event.target.value })}>
-          <option value="">Select value</option>
-          {options.map((option) => <option key={option} value={option}>{option}</option>)}
-          <option value="__other__">Other...</option>
-        </select>
-      ) : (
-        <input className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" placeholder={options.length ? "Other value" : "Value"} value={value.value === "__other__" ? "" : value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
+      {hasCondition && (
+        <>
+          <select className="min-w-0 rounded border border-zinc-200 px-1 py-1 text-xs" value={value.operator} onChange={(event) => onChange({ ...value, operator: event.target.value as FieldCondition["operator"] })}>
+            {operatorOptions.map((operator) => <option key={operator.value} value={operator.value}>{operator.label}</option>)}
+          </select>
+          {options.length && !useCustomValue ? (
+            <select className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" value={value.value} onChange={(event) => onChange({ ...value, value: event.target.value === "__other__" ? "__other__" : event.target.value })}>
+              <option value="">Select value</option>
+              {options.map((option) => <option key={option} value={option}>{option}</option>)}
+              <option value="__other__">Other...</option>
+            </select>
+          ) : (
+            <input className="min-w-0 rounded border border-zinc-200 px-2 py-1 text-xs" placeholder={options.length ? "Other value" : "Value"} value={value.value === "__other__" ? "" : value.value} onChange={(event) => onChange({ ...value, value: event.target.value })} />
+          )}
+        </>
       )}
     </div>
   );
@@ -1136,6 +1161,10 @@ function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: D
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <TextInput label="Company / client" value={design.companyName} onChange={(companyName) => update({ companyName })} />
+            <TextInput label="Report header text" value={design.headerText} onChange={(headerText) => update({ headerText })} />
+          </div>
           <label className="flex items-center justify-between gap-3 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
             Let AI choose design elements
             <input type="checkbox" checked={!!design.aiChooseDesign} onChange={(event) => update({ aiChooseDesign: event.target.checked })} className="h-4 w-4 accent-lime-400" />
@@ -1155,7 +1184,7 @@ function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: D
               placeholder="Example: match our brand colours, use editable tables, formal compliance-report style..."
             />
           </label>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <label className="text-xs text-zinc-500">
               Primary
               <input type="color" value={design.primaryColor} onChange={(event) => update({ primaryColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
@@ -1164,6 +1193,24 @@ function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: D
               Accent
               <input type="color" value={design.accentColor} onChange={(event) => update({ accentColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
             </label>
+            <label className="text-xs text-zinc-500">
+              Header
+              <input type="color" value={design.headerColor} onChange={(event) => update({ headerColor: event.target.value, tableHeaderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+            </label>
+            <label className="text-xs text-zinc-500">
+              Footer
+              <input type="color" value={design.footerColor} onChange={(event) => update({ footerColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+            </label>
+            <label className="text-xs text-zinc-500">
+              Table border
+              <input type="color" value={design.tableBorderColor} onChange={(event) => update({ tableBorderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+            </label>
+            <Select label="Font" value={design.fontFamily} onChange={(fontFamily) => update({ fontFamily: fontFamily as DesignSettings["fontFamily"] })} options={["Arial", "Calibri", "Inter", "Aptos"]} />
+          </div>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <Select label="Heading style" value={design.headingStyle} onChange={(headingStyle) => update({ headingStyle: headingStyle as DesignSettings["headingStyle"] })} options={["bar", "underline", "boxed"]} />
+            <Select label="Table style" value={design.tableStyle} onChange={(tableStyle) => update({ tableStyle: tableStyle as DesignSettings["tableStyle"] })} options={["source", "minimal", "grid"]} />
+            <Select label="Logo placement" value={design.logoPlacement} onChange={(logoPlacement) => update({ logoPlacement: logoPlacement as DesignSettings["logoPlacement"] })} options={["left", "center", "right"]} />
           </div>
           <label className="flex items-center gap-2 rounded-[8px] border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-700 cursor-pointer">
             <Image size={16} />
@@ -1310,7 +1357,7 @@ function Range({ label, value, min, max, onChange }: { label: string; value: num
   );
 }
 
-function Projects({ projects, activeProjectId, openProject }: { projects: ProjectRecord[]; activeProjectId: string; openProject: (id: string) => void }) {
+function ProjectsLegacy({ projects, activeProjectId, openProject }: { projects: ProjectRecord[]; activeProjectId: string; openProject: (id: string) => void }) {
   return (
     <div className="p-6">
       <div className="bg-white border border-zinc-200 rounded-[8px]">
@@ -1330,6 +1377,47 @@ function Projects({ projects, activeProjectId, openProject }: { projects: Projec
                 <ChevronRight size={18} />
               </span>
             </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Projects({ projects, activeProjectId, openProject }: { projects: ProjectRecord[]; activeProjectId: string; openProject: (id: string) => void }) {
+  const groupedProjects = projects.reduce<Record<string, ProjectRecord[]>>((groups, project) => {
+    const company = project.designSettings?.companyName || project.spec?.designSettings?.companyName || "Unassigned company";
+    groups[company] = groups[company] || [];
+    groups[company].push(project);
+    return groups;
+  }, {});
+
+  return (
+    <div className="p-6">
+      <div className="bg-white border border-zinc-200 rounded-[8px]">
+        <PanelTitle icon={Layers3} title="Projects" subtitle="Grouped by company / client" />
+        <div className="divide-y divide-zinc-200">
+          {Object.entries(groupedProjects).map(([company, companyProjects]) => (
+            <section key={company}>
+              <div className="bg-zinc-50 px-4 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">{company}</div>
+              <div className="divide-y divide-zinc-100">
+                {companyProjects.map((project) => (
+                  <button key={project.id} onClick={() => openProject(project.id)} className={cn("w-full p-4 flex items-center justify-between text-left transition-colors hover:bg-zinc-50", activeProjectId === project.id && "bg-lime-50 hover:bg-lime-50")}>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold">{project.title}</p>
+                        {activeProjectId === project.id && <span className="rounded-full bg-lime-200 px-2 py-0.5 text-[10px] font-semibold uppercase text-zinc-800">Open</span>}
+                      </div>
+                      <p className="text-xs text-zinc-500">{project.mode} · {new Date(project.updatedAt).toLocaleString()}</p>
+                    </div>
+                    <span className="flex items-center gap-2 text-sm font-semibold text-zinc-500">
+                      Open
+                      <ChevronRight size={18} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </section>
           ))}
         </div>
       </div>
