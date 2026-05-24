@@ -225,6 +225,7 @@ function normalizeFormSpecLabels(spec: FormSpec): FormSpec {
       sections: (spec.docxContent?.sections || []).map((section) => ({
         ...section,
         content: replaceLabels(section.content || ""),
+        conditions: section.conditions?.map(normalizeCondition),
         displayWhen: Array.isArray(section.displayWhen)
           ? section.displayWhen.map(normalizeCondition)
           : section.displayWhen
@@ -573,7 +574,7 @@ export default function App() {
             onClose={() => setShowDesign(false)}
           />
         )}
-        {showPreview && <PreviewModal spec={spec} onClose={() => setShowPreview(false)} />}
+        {showPreview && <PreviewModal spec={spec} updateSpec={updateSpec} onClose={() => setShowPreview(false)} />}
       </main>
     </div>
   );
@@ -928,7 +929,7 @@ const operatorOptions: { value: FieldCondition["operator"]; label: string }[] = 
   { value: "GTE", label: "Greater than or equal" },
 ];
 
-function ConditionEditor({ fields, currentIndex, condition, onChange }: { fields: ServiceM8Field[]; currentIndex: number; condition?: FieldCondition; onChange: (condition: FieldCondition) => void }) {
+function ConditionEditor({ fields, currentIndex = -1, condition, onChange }: { fields: ServiceM8Field[]; currentIndex?: number; condition?: FieldCondition; onChange: (condition: FieldCondition) => void }) {
   const value = condition || { questionLabel: "", operator: "EQ", value: "" };
   const availableFields = fields.filter((_, index) => index !== currentIndex);
   const selectedField = availableFields.find((field) => field.label === value.questionLabel);
@@ -1048,14 +1049,46 @@ function OutputPanel({ spec, onBuild, disabled }: { spec: FormSpec; onBuild: () 
   );
 }
 
-function PreviewPanel({ spec }: { spec: FormSpec }) {
+function sectionDisplayConditions(section: FormSpec["docxContent"]["sections"][number]) {
+  if (Array.isArray(section.displayWhen)) return section.displayWhen;
+  if (section.displayWhen) return [section.displayWhen];
+  if (Array.isArray(section.conditions)) return section.conditions;
+  return [];
+}
+
+function PreviewPanel({ spec, updateSpec }: { spec: FormSpec; updateSpec?: (spec: FormSpec) => void }) {
+  const updateSectionCondition = (index: number, condition: FieldCondition) => {
+    if (!updateSpec) return;
+    const sections = spec.docxContent.sections.map((section, sectionIndex) => {
+      if (sectionIndex !== index) return section;
+      const displayWhen = condition.questionLabel ? [condition] : [];
+      return { ...section, displayWhen, conditions: displayWhen };
+    });
+    updateSpec({ ...spec, docxContent: { ...spec.docxContent, sections } });
+  };
+
   return (
     <div className="bg-white border border-zinc-200 rounded-[8px] p-4">
       <PanelTitle icon={FileText} title="Report preview" subtitle="Structure and document sections" />
       <div className="mt-4 space-y-3 max-h-[52vh] overflow-auto">
-        {spec.docxContent.sections.length ? spec.docxContent.sections.map((section) => (
+        {spec.docxContent.sections.length ? spec.docxContent.sections.map((section, index) => (
           <div key={section.title} className="border border-zinc-200 rounded-[8px] overflow-hidden">
-            <div className="bg-zinc-800 text-white px-3 py-2 text-sm font-semibold">{section.title}</div>
+            <div className="flex items-center justify-between gap-3 bg-zinc-800 px-3 py-2 text-sm font-semibold text-white">
+              <span>{section.title}</span>
+              {sectionDisplayConditions(section).length > 0 && <span className="rounded bg-lime-300 px-2 py-0.5 text-[11px] font-semibold text-zinc-950">Hidden by IF</span>}
+            </div>
+            {updateSpec && (
+              <div className="border-b border-zinc-200 bg-zinc-50 px-3 py-2">
+                <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+                  <span className="font-semibold text-zinc-700">Show section when</span>
+                  <ConditionEditor
+                    fields={spec.fields}
+                    condition={sectionDisplayConditions(section)[0]}
+                    onChange={(condition) => updateSectionCondition(index, condition)}
+                  />
+                </div>
+              </div>
+            )}
             <pre className="p-3 text-xs whitespace-pre-wrap font-sans text-zinc-600">{section.content || "No content yet"}</pre>
           </div>
         )) : <p className="text-sm text-zinc-500">Generate a plan to preview DOCX sections.</p>}
@@ -1064,7 +1097,7 @@ function PreviewPanel({ spec }: { spec: FormSpec }) {
   );
 }
 
-function PreviewModal({ spec, onClose }: { spec: FormSpec; onClose: () => void }) {
+function PreviewModal({ spec, updateSpec, onClose }: { spec: FormSpec; updateSpec: (spec: FormSpec) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[80] bg-zinc-950/50 p-4 lg:p-8" role="dialog" aria-modal="true">
       <div className="mx-auto flex h-full max-w-5xl flex-col rounded-[8px] bg-white shadow-2xl">
@@ -1076,7 +1109,7 @@ function PreviewModal({ spec, onClose }: { spec: FormSpec; onClose: () => void }
           <button onClick={onClose} className="rounded-[8px] border border-zinc-300 px-3 py-2 text-sm font-semibold">Close</button>
         </div>
         <div className="min-h-0 flex-1 overflow-auto p-5">
-          <PreviewPanel spec={spec} />
+          <PreviewPanel spec={spec} updateSpec={updateSpec} />
         </div>
       </div>
     </div>

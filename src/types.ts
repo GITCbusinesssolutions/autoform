@@ -41,6 +41,7 @@ export interface DocxSection {
   isStandardHeader?: boolean;
   isStandardFooter?: boolean;
   layout?: "text" | "table" | "grid";
+  conditions?: FieldCondition[];
   displayWhen?: FieldCondition | FieldCondition[];
 }
 

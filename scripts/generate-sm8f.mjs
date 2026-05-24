@@ -158,7 +158,8 @@ function slug(value) {
 
 function optionCode(value) {
   return cleanLabel(value)
-    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "_")
     .replace(/_+/g, "_")
     .replace(/^_|_$/g, "");
 }
@@ -409,6 +410,15 @@ function resolveDocxCondition(condition, fieldsByLabel) {
   }
 
   if (field) {
+    const isMultiAnswer = formFieldType(field) === "Multiple Choice (Multi-Answer)";
+    if (isMultiAnswer && condition.value && ["EQ", "CON", "NEQ", "NCON"].includes(operator)) {
+      return {
+        fieldName: optionMergeFieldName(field, condition.value),
+        operator: ["NEQ", "NCON"].includes(operator) ? "<>" : "=",
+        value: "Yes",
+      };
+    }
+
     const useOptionMergeField = condition.useOptionMergeField ??
       (formFieldType(field).startsWith("Multiple Choice") && operator === "EQ" && condition.value);
 
