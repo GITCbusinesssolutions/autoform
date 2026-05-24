@@ -353,6 +353,7 @@ export default function App() {
         ? await reviseFormPlan({ prompt, mode: project.mode, currentSpec: spec, designSettings: project.designSettings })
         : await requestFormPlan({ prompt, mode: project.mode, attachments, designSettings: project.designSettings });
       applyPlan(plan, baseMessages);
+      setShowChat(false);
       setPrompt("");
       setAttachments([]);
     } catch (err: any) {
@@ -562,6 +563,14 @@ export default function App() {
             isWorking={isWorking}
             hasOpenAiKey={hasOpenAiKey}
             error={error}
+            design={project.designSettings}
+            updateDesign={updateDesign}
+            onLogo={async (files) => {
+              const file = files?.[0];
+              if (!file) return;
+              const logo = await fileToAttachment(file);
+              updateDesign({ ...project.designSettings, logo });
+            }}
             onClose={() => setShowChat(false)}
           />
         )}
@@ -637,6 +646,9 @@ function ChatModal(props: {
   isWorking: boolean;
   hasOpenAiKey: boolean;
   error: string;
+  design: DesignSettings;
+  updateDesign: (design: DesignSettings) => void;
+  onLogo: (files: FileList | null) => void;
   onClose: () => void;
 }) {
   return (
@@ -669,25 +681,30 @@ function ChatModal(props: {
             )}
           </div>
         )}
-        <div className="flex-1 overflow-auto px-4 py-4 space-y-4">
-          {props.project.messages.map((message) => (
-            <div key={message.id} className={cn("rounded-[8px] p-4 text-sm whitespace-pre-wrap", message.role === "user" ? "bg-zinc-950 text-white" : "bg-[#f4f5ef] text-zinc-800")}>
-              <div className="flex items-center gap-2 mb-2 text-xs opacity-70">
-                {message.role === "user" ? <MessageSquareText size={14} /> : <Bot size={14} />}
-                {message.role}
-              </div>
-              {message.content}
-              {!!message.attachments?.length && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {message.attachments.map((file) => (
-                    <span key={file.id}>
-                      <FileChip file={file} />
-                    </span>
-                  ))}
+        <div className="grid min-h-0 flex-1 grid-cols-1 overflow-hidden lg:grid-cols-[1fr_380px]">
+          <div className="min-h-0 overflow-auto px-4 py-4 space-y-4">
+            {props.project.messages.map((message) => (
+              <div key={message.id} className={cn("rounded-[8px] p-4 text-sm whitespace-pre-wrap", message.role === "user" ? "bg-zinc-950 text-white" : "bg-[#f4f5ef] text-zinc-800")}>
+                <div className="flex items-center gap-2 mb-2 text-xs opacity-70">
+                  {message.role === "user" ? <MessageSquareText size={14} /> : <Bot size={14} />}
+                  {message.role}
                 </div>
-              )}
-            </div>
-          ))}
+                {message.content}
+                {!!message.attachments?.length && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {message.attachments.map((file) => (
+                      <span key={file.id}>
+                        <FileChip file={file} />
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="min-h-0 overflow-auto border-t border-zinc-200 bg-zinc-50 p-4 lg:border-l lg:border-t-0">
+            <CompactDesignBrief design={props.design} updateDesign={props.updateDesign} onLogo={props.onLogo} />
+          </div>
         </div>
         <div className="p-4 border-t border-zinc-200 space-y-3">
           <textarea
@@ -1141,8 +1158,83 @@ function PreviewModal({ spec, updateSpec, onClose }: { spec: FormSpec; updateSpe
   );
 }
 
-function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void; onClose: () => void }) {
+function LogoPreview({ logo }: { logo?: AttachmentPayload | null }) {
+  if (!logo) return null;
+  const isImage = String(logo.mimeType || "").startsWith("image/");
+  return (
+    <div className="rounded-[8px] border border-zinc-200 bg-white p-2">
+      {isImage ? (
+        <img src={logo.data} alt={logo.name} className="h-20 w-full rounded border border-zinc-100 object-contain" />
+      ) : (
+        <div className="flex h-20 items-center justify-center rounded border border-zinc-100 text-xs text-zinc-500">{logo.name}</div>
+      )}
+      <p className="mt-2 truncate text-xs text-zinc-500">{logo.name}</p>
+    </div>
+  );
+}
+
+function CompactDesignBrief({ design, updateDesign, onLogo }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void }) {
   const update = (patch: Partial<DesignSettings>) => updateDesign({ ...design, ...patch });
+  return (
+    <div className="space-y-3">
+      <div>
+        <h3 className="text-sm font-semibold text-zinc-900">Design brief</h3>
+        <p className="text-xs text-zinc-500">Sent with the AI request and used by the DOCX build.</p>
+      </div>
+      <TextInput label="Company / client" value={design.companyName} onChange={(companyName) => update({ companyName })} />
+      <TextInput label="Report header text" value={design.headerText} onChange={(headerText) => update({ headerText })} />
+      <label className="flex items-center justify-between gap-3 rounded-[8px] border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-700">
+        Let AI choose design elements
+        <input type="checkbox" checked={!!design.aiChooseDesign} onChange={(event) => update({ aiChooseDesign: event.target.checked })} className="h-4 w-4 accent-lime-400" />
+      </label>
+      <Select
+        label="Style direction"
+        value={design.stylePreset || "ai"}
+        onChange={(stylePreset) => update({ stylePreset: stylePreset as DesignSettings["stylePreset"] })}
+        options={["ai", "clean_trade", "corporate", "source_replica", "minimal"]}
+      />
+      <label className="text-xs text-zinc-500">
+        Design instructions for AI
+        <textarea
+          value={design.designBrief || ""}
+          onChange={(event) => update({ designBrief: event.target.value })}
+          className="mt-1 h-24 w-full resize-none rounded-[8px] border border-zinc-300 p-3 text-sm text-zinc-900"
+          placeholder="Example: match our brand colours, use editable tables, formal compliance-report style..."
+        />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="text-xs text-zinc-500">
+          Primary
+          <input type="color" value={design.primaryColor} onChange={(event) => update({ primaryColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+        </label>
+        <label className="text-xs text-zinc-500">
+          Accent
+          <input type="color" value={design.accentColor} onChange={(event) => update({ accentColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+        </label>
+        <label className="text-xs text-zinc-500">
+          Header
+          <input type="color" value={design.headerColor} onChange={(event) => update({ headerColor: event.target.value, tableHeaderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+        </label>
+        <label className="text-xs text-zinc-500">
+          Border
+          <input type="color" value={design.tableBorderColor} onChange={(event) => update({ tableBorderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
+        </label>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Select label="Font" value={design.fontFamily} onChange={(fontFamily) => update({ fontFamily: fontFamily as DesignSettings["fontFamily"] })} options={["Arial", "Calibri", "Inter", "Aptos"]} />
+        <Select label="Logo position" value={design.logoPlacement} onChange={(logoPlacement) => update({ logoPlacement: logoPlacement as DesignSettings["logoPlacement"] })} options={["left", "center", "right"]} />
+      </div>
+      <LogoPreview logo={design.logo} />
+      <label className="flex items-center gap-2 rounded-[8px] border border-dashed border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-700 cursor-pointer">
+        <Image size={16} />
+        Upload logo
+        <input className="hidden" type="file" accept=".png,.jpg,.jpeg" onChange={(event) => onLogo(event.target.files)} />
+      </label>
+    </div>
+  );
+}
+
+function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: DesignSettings; updateDesign: (design: DesignSettings) => void; onLogo: (files: FileList | null) => void; onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-[80] flex items-center justify-center bg-zinc-950/55 p-3 lg:p-6" role="dialog" aria-modal="true">
       <div className="flex max-h-[86vh] w-full max-w-3xl flex-col rounded-[8px] bg-white shadow-2xl">
@@ -1161,63 +1253,7 @@ function DesignBriefModal({ design, updateDesign, onLogo, onClose }: { design: D
           </button>
         </div>
         <div className="min-h-0 flex-1 space-y-3 overflow-auto p-4">
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-            <TextInput label="Company / client" value={design.companyName} onChange={(companyName) => update({ companyName })} />
-            <TextInput label="Report header text" value={design.headerText} onChange={(headerText) => update({ headerText })} />
-          </div>
-          <label className="flex items-center justify-between gap-3 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
-            Let AI choose design elements
-            <input type="checkbox" checked={!!design.aiChooseDesign} onChange={(event) => update({ aiChooseDesign: event.target.checked })} className="h-4 w-4 accent-lime-400" />
-          </label>
-          <Select
-            label="Style direction"
-            value={design.stylePreset || "ai"}
-            onChange={(stylePreset) => update({ stylePreset: stylePreset as DesignSettings["stylePreset"] })}
-            options={["ai", "clean_trade", "corporate", "source_replica", "minimal"]}
-          />
-          <label className="text-xs text-zinc-500">
-            Design instructions for AI
-            <textarea
-              value={design.designBrief || ""}
-              onChange={(event) => update({ designBrief: event.target.value })}
-              className="mt-1 h-28 w-full resize-none rounded-[8px] border border-zinc-300 p-3 text-sm text-zinc-900"
-              placeholder="Example: match our brand colours, use editable tables, formal compliance-report style..."
-            />
-          </label>
-          <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-            <label className="text-xs text-zinc-500">
-              Primary
-              <input type="color" value={design.primaryColor} onChange={(event) => update({ primaryColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
-            </label>
-            <label className="text-xs text-zinc-500">
-              Accent
-              <input type="color" value={design.accentColor} onChange={(event) => update({ accentColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
-            </label>
-            <label className="text-xs text-zinc-500">
-              Header
-              <input type="color" value={design.headerColor} onChange={(event) => update({ headerColor: event.target.value, tableHeaderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
-            </label>
-            <label className="text-xs text-zinc-500">
-              Footer
-              <input type="color" value={design.footerColor} onChange={(event) => update({ footerColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
-            </label>
-            <label className="text-xs text-zinc-500">
-              Table border
-              <input type="color" value={design.tableBorderColor} onChange={(event) => update({ tableBorderColor: event.target.value })} className="mt-1 h-9 w-full rounded border border-zinc-300" />
-            </label>
-            <Select label="Font" value={design.fontFamily} onChange={(fontFamily) => update({ fontFamily: fontFamily as DesignSettings["fontFamily"] })} options={["Arial", "Calibri", "Inter", "Aptos"]} />
-          </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-            <Select label="Heading style" value={design.headingStyle} onChange={(headingStyle) => update({ headingStyle: headingStyle as DesignSettings["headingStyle"] })} options={["bar", "underline", "boxed"]} />
-            <Select label="Table style" value={design.tableStyle} onChange={(tableStyle) => update({ tableStyle: tableStyle as DesignSettings["tableStyle"] })} options={["source", "minimal", "grid"]} />
-            <Select label="Logo placement" value={design.logoPlacement} onChange={(logoPlacement) => update({ logoPlacement: logoPlacement as DesignSettings["logoPlacement"] })} options={["left", "center", "right"]} />
-          </div>
-          <label className="flex items-center gap-2 rounded-[8px] border border-dashed border-zinc-300 px-3 py-2 text-sm text-zinc-700 cursor-pointer">
-            <Image size={16} />
-            Upload logo
-            <input className="hidden" type="file" accept=".png,.jpg,.jpeg" onChange={(event) => onLogo(event.target.files)} />
-          </label>
-          {design.logo && <p className="text-xs text-zinc-500">{design.logo.name}</p>}
+          <CompactDesignBrief design={design} updateDesign={updateDesign} onLogo={onLogo} />
         </div>
         <div className="flex justify-end border-t border-zinc-200 p-4">
           <button onClick={onClose} className="rounded-[8px] bg-zinc-950 px-4 py-2 text-sm font-semibold text-white">Done</button>
