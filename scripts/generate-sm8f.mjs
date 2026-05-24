@@ -400,10 +400,14 @@ function bestFieldForText(text, fieldsByLabel, fields = []) {
 
 function sectionFieldScore(section, field) {
   const sectionText = `${section.title || ""} ${section.content || ""}`;
-  const fieldText = `${field.label || ""} ${field.additionalDetails || ""}`;
+  const conditionText = Array.isArray(field.conditions)
+    ? field.conditions.map((condition) => `${condition.questionLabel || condition.field || ""} ${condition.value || ""}`).join(" ")
+    : "";
+  const fieldText = `${field.label || ""} ${field.additionalDetails || ""} ${conditionText}`;
   let score = tokenScore(sectionText, fieldText);
   const title = String(section.title || "").toLowerCase();
   const label = String(field.label || "").toLowerCase();
+  const fieldFullText = fieldText.toLowerCase();
   const details = String(field.additionalDetails || "").toLowerCase();
 
   if (title.includes("arrival") && details.includes("before")) score += 4;
@@ -411,7 +415,7 @@ function sectionFieldScore(section, field) {
   if (title.includes("time") && /time|variation|notified|ack|estimated|est/.test(label)) score += 4;
   if (title.includes("works") && /works|delay|system|status|exit/.test(label)) score += 4;
   if (title.includes("additional") && /minor|major|urgent|eta|quote/.test(label)) score += 4;
-  if (title.includes("compliance") && /test tag|emergency lighting/.test(label)) score += 5;
+  if (title.includes("compliance") && /test tag|emergency lighting/.test(fieldFullText)) score += 5;
   if (title.includes("completion") && /completion|return|finish|after|close out/.test(label)) score += 4;
   if (title.includes("footer") || title.includes("header")) score = 0;
 
@@ -810,6 +814,45 @@ function tableLineWeight(line, fieldsByLabel) {
   return optionWeight + labelWrapWeight;
 }
 
+function rowField(line, fieldsByLabel) {
+  const [label, ...rest] = String(line || "").split(":");
+  const value = rest.join(":").trim() || line;
+  return fieldsByLabel.get(cleanLabel(label.trim())) || checklistMarkerField(value, fieldsByLabel);
+}
+
+function rowDisplayConditions(line, fieldsByLabel) {
+  const field = rowField(line, fieldsByLabel);
+  return Array.isArray(field?.conditions) ? field.conditions : [];
+}
+
+function conditionSignature(conditions) {
+  const [condition] = Array.isArray(conditions) ? conditions : [];
+  if (!condition?.questionLabel && !condition?.field && !condition?.mergeFieldName) return "";
+  return JSON.stringify({
+    questionLabel: cleanLabel(condition.questionLabel || condition.field || condition.mergeFieldName || ""),
+    operator: String(condition.operator || "EQ").toUpperCase(),
+    value: String(condition.value ?? ""),
+  });
+}
+
+function splitConditionalRowGroups(rows, fieldsByLabel, sectionHasConditions) {
+  if (sectionHasConditions) return [{ rows, conditions: [] }];
+
+  const groups = [];
+  for (const row of rows) {
+    const conditions = rowDisplayConditions(row, fieldsByLabel);
+    const key = conditionSignature(conditions);
+    const previous = groups[groups.length - 1];
+    if (previous && previous.key === key) {
+      previous.rows.push(row);
+    } else {
+      groups.push({ key, rows: [row], conditions: key ? conditions : [] });
+    }
+  }
+
+  return groups;
+}
+
 function chunkTableRows(rows, section, fieldsByLabel) {
   if (section.isStandardHeader || rows.length <= 8) return [rows];
 
@@ -1082,17 +1125,39 @@ async function buildDocx(spec) {
 
     if (isTableSection) {
       const rows = sectionContentRows(section, fieldsByLabel, normalized.fields, assignedDocxLabels);
-      const chunks = chunkTableRows(rows, section, fieldsByLabel);
-      for (const [chunkIndex, chunk] of chunks.entries()) {
-        const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica, design);
-        if (useTableHeading && chunkIndex === 0) tableRows.unshift(buildTableHeadingRow(section.title, replica, design));
+      const rowGroups = splitConditionalRowGroups(rows, fieldsByLabel, hasSectionConditions);
+      let hasRenderedHeadingRow = false;
 
-        children.push(new Table({
-          width: { size: 9360, type: WidthType.DXA },
-          columnWidths: replica ? [2300, 7060] : [3100, 6260],
-          layout: TableLayoutType.AUTOFIT,
-          rows: tableRows,
-        }));
+      for (const group of rowGroups) {
+        const hasGroupConditions = group.conditions.length > 0;
+        if (hasGroupConditions) {
+          children.push(new Paragraph({
+            children: conditionalSectionStartRuns({ ...section, displayWhen: group.conditions }, fieldsByLabel, { bold: true, size: 22, color: design.primaryColor, font: design.fontFamily }),
+            keepNext: true,
+            spacing: { before: replica ? 120 : 180, after: replica ? 60 : 80 },
+          }));
+        }
+
+        const chunks = chunkTableRows(group.rows, section, fieldsByLabel);
+        for (const [chunkIndex, chunk] of chunks.entries()) {
+          const tableRows = buildTableRows(chunk, section, fieldsByLabel, replica, design);
+          if (useTableHeading && !hasRenderedHeadingRow && !hasGroupConditions && chunkIndex === 0) {
+            tableRows.unshift(buildTableHeadingRow(section.title, replica, design));
+            hasRenderedHeadingRow = true;
+          }
+
+          children.push(new Table({
+            width: { size: 9360, type: WidthType.DXA },
+            columnWidths: replica ? [2300, 7060] : [3100, 6260],
+            layout: TableLayoutType.AUTOFIT,
+            rows: tableRows,
+          }));
+        }
+
+        if (hasGroupConditions) {
+          const conditionalGroupEnd = conditionalSectionEndParagraph({ ...section, displayWhen: group.conditions }, fieldsByLabel, { size: 20, color: design.primaryColor, font: design.fontFamily });
+          if (conditionalGroupEnd) children.push(conditionalGroupEnd);
+        }
       }
       children.push(new Paragraph({ text: "", spacing: { after: replica ? 100 : 180 } }));
     } else {
