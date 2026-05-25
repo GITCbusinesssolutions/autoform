@@ -35,6 +35,10 @@ function swmsOptionMergeField(title) {
   return `form_swms_required_${optionCode(title)}`;
 }
 
+function compactOptionCode(value) {
+  return optionCode(value).toLowerCase().replace(/_/g, "");
+}
+
 function escapeXml(value) {
   return String(value || "")
     .replace(/&/g, "&amp;")
@@ -63,8 +67,87 @@ function documentBodyParts(documentXml) {
   };
 }
 
+function splitBodyElements(bodyContent) {
+  const elements = [];
+  const regex = /<w:(p|tbl|sdt)\b[\s\S]*?<\/w:\1>/g;
+  let match;
+  let lastIndex = 0;
+
+  while ((match = regex.exec(bodyContent)) !== null) {
+    const leading = bodyContent.slice(lastIndex, match.index);
+    if (leading.trim()) elements.push(leading);
+    elements.push(match[0]);
+    lastIndex = match.index + match[0].length;
+  }
+
+  const trailing = bodyContent.slice(lastIndex);
+  if (trailing.trim()) elements.push(trailing);
+  return elements;
+}
+
 function documentXmlFromParts(originalXml, bodyContent, sectPr) {
   return originalXml.replace(/<w:body[^>]*>[\s\S]*?<\/w:body>/, `<w:body>${bodyContent}${sectPr}</w:body>`);
+}
+
+function swmsRequiredFieldInElement(element) {
+  return element.match(/MERGEFIELD\s+(form_swms_required_[^\\<\s]+)/)?.[1] || "";
+}
+
+function splitBaseSwmsTemplate(documentXml) {
+  const bodyParts = documentBodyParts(documentXml);
+  const elements = splitBodyElements(bodyParts.content);
+  const starts = elements
+    .map((element, index) => ({ index, fieldName: swmsRequiredFieldInElement(element) }))
+    .filter((entry) => entry.fieldName);
+
+  if (!starts.length) {
+    return {
+      prefixContent: "",
+      preparedBlocks: new Map(),
+      tailContent: "",
+      sectPr: bodyParts.sectPr,
+    };
+  }
+
+  const lastStartIndex = starts[starts.length - 1].index;
+  const finalSwmsEndIndex = elements.findIndex((element, index) =>
+    index > lastStartIndex &&
+    element.includes('w:fldCharType="end"') &&
+    element.includes('" ""') &&
+    !swmsRequiredFieldInElement(element),
+  );
+  const tailStart = finalSwmsEndIndex >= 0 ? finalSwmsEndIndex + 1 : elements.length;
+  const preparedBlocks = new Map();
+
+  starts.forEach((start, startIndex) => {
+    const nextStart = starts[startIndex + 1]?.index ?? tailStart;
+    const content = elements.slice(start.index + 1, nextStart).join("");
+    preparedBlocks.set(start.fieldName, content);
+  });
+
+  return {
+    prefixContent: elements.slice(0, starts[0].index).join(""),
+    preparedBlocks,
+    tailContent: elements.slice(tailStart).join(""),
+    sectPr: bodyParts.sectPr,
+  };
+}
+
+function preparedBlockForTitle(preparedBlocks, title) {
+  const fieldName = swmsOptionMergeField(title);
+  if (preparedBlocks.has(fieldName)) {
+    return { fieldName, content: preparedBlocks.get(fieldName) };
+  }
+
+  const titleKey = compactOptionCode(title);
+  for (const [preparedFieldName, content] of preparedBlocks.entries()) {
+    const preparedKey = compactOptionCode(preparedFieldName.replace(/^form_swms_required_/, ""));
+    if (titleKey.includes(preparedKey) || preparedKey.includes(titleKey)) {
+      return { fieldName, content };
+    }
+  }
+
+  return null;
 }
 
 function parseRelationships(relsXml = "") {
@@ -129,7 +212,7 @@ function replaceAll(value, replacements) {
   return next;
 }
 
-async function copyRelatedParts({ sourceZip, sourceRels, targetZip, targetRels, contentTypesXml, docIndex, bodyXml }) {
+async function copyRelatedParts({ sourceZip, sourceRels, sourceContentTypesXml, targetZip, targetRels, contentTypesXml, docIndex, bodyXml }) {
   const allocateRid = nextRid(targetRels);
   const ridReplacements = [];
   let nextContentTypes = contentTypesXml;
@@ -160,7 +243,7 @@ async function copyRelatedParts({ sourceZip, sourceRels, targetZip, targetRels, 
     targetRels.push({ ...rel, Id: newId, Target: newTarget });
     ridReplacements.push([rel.Id, newId]);
 
-    const contentType = contentTypeForPart(contentTypesXml, sourcePart);
+    const contentType = contentTypeForPart(sourceContentTypesXml, sourcePart) || contentTypeForPart(contentTypesXml, sourcePart);
     if (contentType) {
       if (sourcePart.startsWith("word/media/")) {
         nextContentTypes = ensureDefaultContentType(nextContentTypes, ext.replace(".", ""), contentType);
@@ -173,28 +256,47 @@ async function copyRelatedParts({ sourceZip, sourceRels, targetZip, targetRels, 
   return { bodyXml: replaceAll(bodyXml, ridReplacements), contentTypesXml: nextContentTypes };
 }
 
-async function buildTemplateDocx(documents) {
+async function fileExists(filePath) {
+  try {
+    await fs.access(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function buildTemplateDocx(documents, baseTemplatePath) {
   if (!documents.length) throw new Error("Select at least one SWMS document");
 
-  const firstZip = await JSZip.loadAsync(await fs.readFile(documents[0].path));
-  const targetZip = await JSZip.loadAsync(await fs.readFile(documents[0].path));
-  const firstDocumentXml = await firstZip.file("word/document.xml").async("string");
-  const firstParts = documentBodyParts(firstDocumentXml);
+  const hasBaseTemplate = baseTemplatePath && await fileExists(baseTemplatePath);
+  const targetPath = hasBaseTemplate ? baseTemplatePath : documents[0].path;
+  const targetZip = await JSZip.loadAsync(await fs.readFile(targetPath));
+  const targetDocumentXml = await targetZip.file("word/document.xml").async("string");
+  const targetParts = documentBodyParts(targetDocumentXml);
+  const baseTemplate = hasBaseTemplate ? splitBaseSwmsTemplate(targetDocumentXml) : null;
   const relsPath = "word/_rels/document.xml.rels";
   const firstRelsXml = await targetZip.file(relsPath).async("string");
   const targetRels = parseRelationships(firstRelsXml);
   let contentTypesXml = await targetZip.file("[Content_Types].xml").async("string");
-  const blocks = [];
+  const blocks = baseTemplate?.prefixContent ? [baseTemplate.prefixContent] : [];
 
   for (const [index, document] of documents.entries()) {
+    const prepared = baseTemplate ? preparedBlockForTitle(baseTemplate.preparedBlocks, document.title) : null;
+    if (prepared) {
+      blocks.push(`${ifStartParagraph(prepared.fieldName)}${prepared.content}${ifEndParagraph()}`);
+      continue;
+    }
+
     const sourceZip = await JSZip.loadAsync(await fs.readFile(document.path));
     const sourceDocumentXml = await sourceZip.file("word/document.xml").async("string");
     const sourceRelsXml = sourceZip.file(relsPath) ? await sourceZip.file(relsPath).async("string") : "";
     const sourceRels = parseRelationships(sourceRelsXml);
+    const sourceContentTypesXml = sourceZip.file("[Content_Types].xml") ? await sourceZip.file("[Content_Types].xml").async("string") : "";
     const sourceParts = documentBodyParts(sourceDocumentXml);
     const copied = await copyRelatedParts({
       sourceZip,
       sourceRels,
+      sourceContentTypesXml,
       targetZip,
       targetRels,
       contentTypesXml,
@@ -205,9 +307,11 @@ async function buildTemplateDocx(documents) {
     blocks.push(`${ifStartParagraph(swmsOptionMergeField(document.title))}${copied.bodyXml}${ifEndParagraph()}`);
   }
 
+  if (baseTemplate?.tailContent) blocks.push(baseTemplate.tailContent);
+
   targetZip.file(relsPath, relationshipXml(targetRels));
   targetZip.file("[Content_Types].xml", contentTypesXml);
-  targetZip.file("word/document.xml", documentXmlFromParts(firstDocumentXml, blocks.join(""), firstParts.sectPr));
+  targetZip.file("word/document.xml", documentXmlFromParts(targetDocumentXml, blocks.join(""), targetParts.sectPr));
   return targetZip.generateAsync({ type: "nodebuffer", compression: "DEFLATE" });
 }
 
@@ -283,9 +387,10 @@ async function main() {
   if (!documents.length) throw new Error("No SWMS documents selected");
 
   const baseFormPath = input.baseFormPath || path.join(process.cwd(), "assets", "swms-base-form.json");
+  const baseTemplatePath = input.baseTemplatePath || path.join(process.cwd(), "assets", "swms-base-template.docx");
   const baseForm = JSON.parse(await fs.readFile(baseFormPath, "utf8"));
   const formJson = buildFormJson(baseForm, input.title || "Electrical & Solar Installation SWMS", documents.map((document) => document.title));
-  const templateDocx = await buildTemplateDocx(documents);
+  const templateDocx = await buildTemplateDocx(documents, baseTemplatePath);
 
   const zip = new JSZip();
   zip.file("form.json", JSON.stringify(formJson));
