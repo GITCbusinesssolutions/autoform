@@ -545,6 +545,14 @@ function assertDocxUpload(file: any) {
   return { name, buffer };
 }
 
+function logoExtension(file: any) {
+  const mimeType = String(file?.mimeType || "").toLowerCase();
+  const fileExt = path.extname(String(file?.name || "")).replace(".", "").toLowerCase();
+  if (mimeType.includes("png") || fileExt === "png") return "png";
+  if (mimeType.includes("jpeg") || mimeType.includes("jpg") || fileExt === "jpg" || fileExt === "jpeg") return "jpg";
+  throw new Error("Upload a PNG or JPG logo image");
+}
+
 function publicSwmsItem(item: any) {
   const { filePath, ...safe } = item;
   return safe;
@@ -637,9 +645,27 @@ app.post("/api/swms/build", async (req, res) => {
     const inputPath = path.join(tempDir, "swms-build.json");
     const outputPath = path.join(tempDir, "output.sm8f");
     const title = String(req.body?.title || "Electrical & Solar Installation SWMS").trim();
+    const designSettings = req.body?.designSettings || {};
+    const logo = designSettings?.logo;
+    let logoInput: any = undefined;
+
+    if (logo?.data) {
+      const extension = logoExtension(logo);
+      const logoPath = path.join(tempDir, `logo.${extension}`);
+      await fs.writeFile(logoPath, decodeAttachmentData(logo));
+      logoInput = {
+        path: logoPath,
+        fileName: logo.name || `logo.${extension}`,
+        mimeType: logo.mimeType || (extension === "png" ? "image/png" : "image/jpeg"),
+        width: Number(designSettings.logoWidth || 150),
+        placement: designSettings.logoPlacement || "left",
+      };
+    }
+
     await fs.writeFile(inputPath, JSON.stringify({
       title,
       documents: documents.map((item: any) => ({ title: item.title, path: item.filePath })),
+      logo: logoInput,
     }, null, 2), "utf8");
 
     await runNodeScript(path.join(process.cwd(), "scripts", "build-swms-sm8f.mjs"), [inputPath, outputPath]);

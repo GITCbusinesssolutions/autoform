@@ -134,7 +134,7 @@ export async function deleteSwmsLibraryItem(id: string): Promise<void> {
   }
 }
 
-export async function buildSwmsSm8f(input: { title: string; selectedLibraryIds: string[]; selectedProjectDocumentIds: string[] }): Promise<Blob> {
+export async function buildSwmsSm8f(input: { title: string; selectedLibraryIds: string[]; selectedProjectDocumentIds: string[]; designSettings?: DesignSettings }): Promise<Blob> {
   const response = await fetch("/api/swms/build", {
     method: "POST",
     headers: { "Content-Type": "application/json" },

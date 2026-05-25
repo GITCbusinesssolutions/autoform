@@ -170,6 +170,12 @@ function fileToAttachment(file: File): Promise<AttachmentPayload> {
   });
 }
 
+function attachmentPreviewSrc(attachment: AttachmentPayload) {
+  const data = attachment.data || "";
+  if (data.startsWith("data:")) return data;
+  return `data:${attachment.mimeType || "application/octet-stream"};base64,${data}`;
+}
+
 function summarizePlan(plan: AiPlanResponse) {
   const questions = plan.clarificationQuestions.length
     ? `\n\nQuestions:\n${plan.clarificationQuestions.map((q) => `- ${q}`).join("\n")}`
@@ -670,6 +676,7 @@ function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: 
   const [isBuilding, setIsBuilding] = useState(false);
   const [error, setError] = useState("");
   const state = project.swmsBuilder || defaultSwmsBuilder();
+  const design = project.designSettings || defaultDesign;
   const selectedLibraryIds = new Set(state.selectedLibraryIds);
   const selectedProjectIds = new Set(state.selectedProjectDocumentIds);
   const selectedCount = state.selectedLibraryIds.length + state.selectedProjectDocumentIds.length;
@@ -677,6 +684,10 @@ function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: 
   const updateSwms = (patch: Partial<SwmsBuilderState>) => {
     const next = { ...state, ...patch };
     updateProject({ swmsBuilder: next, title: next.title || project.title });
+  };
+
+  const updateDesign = (patch: Partial<DesignSettings>) => {
+    updateProject({ designSettings: { ...design, ...patch } });
   };
 
   const refreshLibrary = () => {
@@ -734,6 +745,21 @@ function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: 
     }
   };
 
+  const uploadLogo = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setError("");
+    if (!file.type.startsWith("image/")) {
+      setError("Upload a PNG or JPG logo image.");
+      return;
+    }
+    try {
+      updateDesign({ logo: await fileToAttachment(file) });
+    } catch (err: any) {
+      setError(err.message || "Failed to load logo");
+    }
+  };
+
   const deleteLibraryItem = async (id: string) => {
     setError("");
     setIsLoading(true);
@@ -757,6 +783,7 @@ function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: 
         title: state.title,
         selectedLibraryIds: state.selectedLibraryIds,
         selectedProjectDocumentIds: state.selectedProjectDocumentIds,
+        designSettings: design,
       });
       saveAs(blob, `${state.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "swms"}.sm8f`);
       updateProject({ state: "ready" });
@@ -830,24 +857,54 @@ function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: 
         )}
       </div>
 
-      <aside className="rounded-[8px] border border-zinc-200 bg-white p-5">
-        <div className="flex items-center gap-3">
-          <Box className="text-lime-600" />
-          <div>
-            <h2 className="font-semibold">SWMS package</h2>
-            <p className="text-xs text-zinc-500">{selectedCount} selected document{selectedCount === 1 ? "" : "s"}</p>
+      <aside className="space-y-5">
+        <div className="rounded-[8px] border border-zinc-200 bg-white p-5">
+          <div className="flex items-center gap-3">
+            <Box className="text-lime-600" />
+            <div>
+              <h2 className="font-semibold">SWMS package</h2>
+              <p className="text-xs text-zinc-500">{selectedCount} selected document{selectedCount === 1 ? "" : "s"}</p>
+            </div>
+          </div>
+          <div className="mt-5 space-y-2">
+            {selectedTitles.length ? selectedTitles.map((title) => (
+              <div key={title} className="rounded-[8px] border border-zinc-200 px-3 py-2 text-sm">{title}</div>
+            )) : <p className="text-sm text-zinc-500">Select or upload SWMS DOCX files.</p>}
+          </div>
+          <button onClick={buildPackage} disabled={!selectedCount || isBuilding || isWorking} className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] bg-zinc-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+            {isBuilding ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
+            Generate SWMS .sm8f
+          </button>
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+        </div>
+
+        <div className="rounded-[8px] border border-zinc-200 bg-white p-5">
+          <div className="flex items-center gap-3">
+            <Image className="text-lime-600" />
+            <div>
+              <h2 className="font-semibold">Package logo</h2>
+              <p className="text-xs text-zinc-500">Embedded at the start of each selected SWMS block</p>
+            </div>
+          </div>
+          <div className="mt-4 space-y-3">
+            <LogoPreview logo={design.logo} />
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3 text-sm font-semibold text-zinc-700 hover:bg-zinc-100">
+              <Upload size={17} />
+              Upload logo
+              <input className="hidden" type="file" accept=".png,.jpg,.jpeg" onChange={(event) => { void uploadLogo(event.currentTarget.files); event.currentTarget.value = ""; }} />
+            </label>
+            {design.logo && (
+              <button onClick={() => updateDesign({ logo: null })} className="flex w-full items-center justify-center gap-2 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm font-semibold text-zinc-600 hover:bg-zinc-50">
+                <X size={16} />
+                Remove logo
+              </button>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <Select label="Logo placement" value={design.logoPlacement} onChange={(logoPlacement) => updateDesign({ logoPlacement: logoPlacement as DesignSettings["logoPlacement"] })} options={["left", "center", "right"]} />
+              <Range label="Logo width" value={design.logoWidth} min={80} max={280} onChange={(logoWidth) => updateDesign({ logoWidth })} />
+            </div>
           </div>
         </div>
-        <div className="mt-5 space-y-2">
-          {selectedTitles.length ? selectedTitles.map((title) => (
-            <div key={title} className="rounded-[8px] border border-zinc-200 px-3 py-2 text-sm">{title}</div>
-          )) : <p className="text-sm text-zinc-500">Select or upload SWMS DOCX files.</p>}
-        </div>
-        <button onClick={buildPackage} disabled={!selectedCount || isBuilding || isWorking} className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] bg-zinc-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
-          {isBuilding ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
-          Generate SWMS .sm8f
-        </button>
-        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
       </aside>
     </section>
   );
@@ -1383,7 +1440,7 @@ function LogoPreview({ logo }: { logo?: AttachmentPayload | null }) {
   return (
     <div className="rounded-[8px] border border-zinc-200 bg-white p-2">
       {isImage ? (
-        <img src={logo.data} alt={logo.name} className="h-20 w-full rounded border border-zinc-100 object-contain" />
+        <img src={attachmentPreviewSrc(logo)} alt={logo.name} className="h-20 w-full rounded border border-zinc-100 object-contain" />
       ) : (
         <div className="flex h-20 items-center justify-center rounded border border-zinc-100 text-xs text-zinc-500">{logo.name}</div>
       )}

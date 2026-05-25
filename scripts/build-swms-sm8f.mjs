@@ -85,8 +85,23 @@ function splitBodyElements(bodyContent) {
   return elements;
 }
 
+function ensureDocumentNamespaces(documentXml) {
+  const namespaces = {
+    "xmlns:a": "http://schemas.openxmlformats.org/drawingml/2006/main",
+    "xmlns:pic": "http://schemas.openxmlformats.org/drawingml/2006/picture",
+    "xmlns:r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+    "xmlns:wp": "http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing",
+  };
+  let next = documentXml;
+  for (const [attribute, value] of Object.entries(namespaces)) {
+    if (!next.includes(`${attribute}=`)) next = next.replace(/<w:document\b/, `<w:document ${attribute}="${value}"`);
+  }
+  return next;
+}
+
 function documentXmlFromParts(originalXml, bodyContent, sectPr) {
-  return originalXml.replace(/<w:body[^>]*>[\s\S]*?<\/w:body>/, `<w:body>${bodyContent}${sectPr}</w:body>`);
+  const sourceXml = bodyContent.includes("<w:drawing") ? ensureDocumentNamespaces(originalXml) : originalXml;
+  return sourceXml.replace(/<w:body[^>]*>[\s\S]*?<\/w:body>/, `<w:body>${bodyContent}${sectPr}</w:body>`);
 }
 
 function swmsRequiredFieldInElement(element) {
@@ -204,6 +219,85 @@ function contentTypeForPart(contentTypesXml, partName) {
   return def?.[1] || "";
 }
 
+function logoExtension(logo) {
+  const ext = path.extname(logo?.path || logo?.fileName || "").replace(".", "").toLowerCase();
+  if (ext === "png") return "png";
+  if (ext === "jpg" || ext === "jpeg") return "jpg";
+  const mimeType = String(logo?.mimeType || "").toLowerCase();
+  if (mimeType.includes("png")) return "png";
+  if (mimeType.includes("jpg") || mimeType.includes("jpeg")) return "jpg";
+  return "";
+}
+
+function imageContentType(extension) {
+  if (extension === "png") return "image/png";
+  if (extension === "jpg" || extension === "jpeg") return "image/jpeg";
+  return "";
+}
+
+function imageDimensions(buffer, extension) {
+  if (extension === "png" && buffer.length >= 24 && buffer.toString("ascii", 1, 4) === "PNG") {
+    return { width: buffer.readUInt32BE(16), height: buffer.readUInt32BE(20) };
+  }
+
+  if ((extension === "jpg" || extension === "jpeg") && buffer[0] === 0xff && buffer[1] === 0xd8) {
+    let offset = 2;
+    while (offset + 9 < buffer.length) {
+      if (buffer[offset] !== 0xff) {
+        offset += 1;
+        continue;
+      }
+      const marker = buffer[offset + 1];
+      const length = buffer.readUInt16BE(offset + 2);
+      const isStartOfFrame = marker >= 0xc0 && marker <= 0xcf && ![0xc4, 0xc8, 0xcc].includes(marker);
+      if (isStartOfFrame) return { width: buffer.readUInt16BE(offset + 7), height: buffer.readUInt16BE(offset + 5) };
+      offset += 2 + length;
+    }
+  }
+
+  return { width: 400, height: 160 };
+}
+
+function logoParagraph({ relationshipId, fileName, width, height, placement, docPrId }) {
+  const cx = Math.round(width * 9525);
+  const cy = Math.round(height * 9525);
+  const alignment = ["center", "right"].includes(placement) ? placement : "left";
+  const safeName = escapeXml(fileName || "Logo");
+  return `<w:p><w:pPr><w:jc w:val="${alignment}"/><w:spacing w:after="140"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:effectExtent l="0" t="0" r="0" b="0"/><wp:docPr id="${docPrId}" name="${safeName}"/><wp:cNvGraphicFramePr><a:graphicFrameLocks noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:pic><pic:nvPicPr><pic:cNvPr id="${docPrId}" name="${safeName}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${relationshipId}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>`;
+}
+
+async function addLogoAsset({ targetZip, targetRels, contentTypesXml, logo }) {
+  if (!logo?.path) return { contentTypesXml, paragraphForBlock: () => "" };
+  const extension = logoExtension(logo);
+  const contentType = imageContentType(extension);
+  if (!extension || !contentType) throw new Error("Logo must be a PNG or JPG image");
+
+  const buffer = await fs.readFile(logo.path);
+  const fileName = `autoform_logo.${extension}`;
+  const relationshipId = nextRid(targetRels)();
+  const dimensions = imageDimensions(buffer, extension);
+  const width = Math.max(60, Math.min(360, Number(logo.width || 150)));
+  const height = Math.max(20, Math.round(width * (dimensions.height / dimensions.width)));
+  targetZip.file(`word/media/${fileName}`, buffer);
+  targetRels.push({
+    Id: relationshipId,
+    Type: "http://schemas.openxmlformats.org/officeDocument/2006/relationships/image",
+    Target: `media/${fileName}`,
+  });
+
+  return {
+    contentTypesXml: ensureDefaultContentType(contentTypesXml, extension, contentType),
+    paragraphForBlock: (index) => logoParagraph({
+      relationshipId,
+      fileName,
+      width,
+      height,
+      placement: logo.placement || "left",
+      docPrId: 9000 + index,
+    }),
+  };
+}
+
 function replaceAll(value, replacements) {
   let next = value;
   for (const [from, to] of replacements) {
@@ -265,7 +359,7 @@ async function fileExists(filePath) {
   }
 }
 
-async function buildTemplateDocx(documents, baseTemplatePath) {
+async function buildTemplateDocx(documents, baseTemplatePath, logo) {
   if (!documents.length) throw new Error("Select at least one SWMS document");
 
   const hasBaseTemplate = baseTemplatePath && await fileExists(baseTemplatePath);
@@ -278,12 +372,15 @@ async function buildTemplateDocx(documents, baseTemplatePath) {
   const firstRelsXml = await targetZip.file(relsPath).async("string");
   const targetRels = parseRelationships(firstRelsXml);
   let contentTypesXml = await targetZip.file("[Content_Types].xml").async("string");
+  const logoAsset = await addLogoAsset({ targetZip, targetRels, contentTypesXml, logo });
+  contentTypesXml = logoAsset.contentTypesXml;
   const blocks = baseTemplate?.prefixContent ? [baseTemplate.prefixContent] : [];
 
   for (const [index, document] of documents.entries()) {
+    const logoBlock = logoAsset.paragraphForBlock(index + 1);
     const prepared = baseTemplate ? preparedBlockForTitle(baseTemplate.preparedBlocks, document.title) : null;
     if (prepared) {
-      blocks.push(`${ifStartParagraph(prepared.fieldName)}${prepared.content}${ifEndParagraph()}`);
+      blocks.push(`${ifStartParagraph(prepared.fieldName)}${logoBlock}${prepared.content}${ifEndParagraph()}`);
       continue;
     }
 
@@ -304,7 +401,7 @@ async function buildTemplateDocx(documents, baseTemplatePath) {
       bodyXml: sourceParts.content,
     });
     contentTypesXml = copied.contentTypesXml;
-    blocks.push(`${ifStartParagraph(swmsOptionMergeField(document.title))}${copied.bodyXml}${ifEndParagraph()}`);
+    blocks.push(`${ifStartParagraph(swmsOptionMergeField(document.title))}${logoBlock}${copied.bodyXml}${ifEndParagraph()}`);
   }
 
   if (baseTemplate?.tailContent) blocks.push(baseTemplate.tailContent);
@@ -390,7 +487,7 @@ async function main() {
   const baseTemplatePath = input.baseTemplatePath || path.join(process.cwd(), "assets", "swms-base-template.docx");
   const baseForm = JSON.parse(await fs.readFile(baseFormPath, "utf8"));
   const formJson = buildFormJson(baseForm, input.title || "Electrical & Solar Installation SWMS", documents.map((document) => document.title));
-  const templateDocx = await buildTemplateDocx(documents, baseTemplatePath);
+  const templateDocx = await buildTemplateDocx(documents, baseTemplatePath, input.logo);
 
   const zip = new JSZip();
   zip.file("form.json", JSON.stringify(formJson));
