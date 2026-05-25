@@ -7,7 +7,7 @@ import dotenv from "dotenv";
 import fs from "node:fs/promises";
 import os from "node:os";
 import { spawn } from "node:child_process";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 
 dotenv.config();
 
@@ -17,6 +17,8 @@ const APP_URL = (process.env.APP_URL || `http://localhost:${PORT}`).replace(/\/$
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-5.4-mini";
 const CODEX_BRIDGE_DIR = process.env.CODEX_BRIDGE_DIR || (process.platform === "win32" ? "C:\\tmp\\autoform-codex-bridge" : path.join(os.tmpdir(), "autoform-codex-bridge"));
 const LOCAL_DB_PATH = process.env.LOCAL_DB_PATH || path.join(process.cwd(), "data", "local-db.json");
+const SWMS_LIBRARY_DIR = process.env.SWMS_LIBRARY_DIR || path.join(process.cwd(), "data", "swms-library", "files");
+const SWMS_PROJECT_DIR = process.env.SWMS_PROJECT_DIR || path.join(process.cwd(), "data", "swms-project-files");
 const ENV_PATH = path.join(process.cwd(), ".env");
 
 app.use(express.json({ limit: "30mb" }));
@@ -121,7 +123,7 @@ async function readLocalDb() {
   try {
     return JSON.parse(await fs.readFile(LOCAL_DB_PATH, "utf8"));
   } catch {
-    return { projects: [] };
+    return { projects: [], swmsLibrary: [], swmsProjectFiles: [] };
   }
 }
 
@@ -154,7 +156,8 @@ app.get("/api/projects", async (_req, res) => {
 
 app.put("/api/projects", async (req, res) => {
   const projects = Array.isArray(req.body?.projects) ? req.body.projects : [];
-  await writeLocalDb({ projects, updatedAt: new Date().toISOString() });
+  const current = await readLocalDb();
+  await writeLocalDb({ ...current, projects, updatedAt: new Date().toISOString() });
   res.json({ ok: true });
 });
 
@@ -523,6 +526,131 @@ function runNodeScript(scriptPath: string, args: string[]) {
     });
   });
 }
+
+function safeDocxName(value: string) {
+  const cleaned = cleanServiceM8Label(value || "swms").replace(/\s+/g, "-").toLowerCase();
+  return cleaned || "swms";
+}
+
+function decodeAttachmentData(file: any) {
+  const raw = String(file?.data || "");
+  return Buffer.from(raw.includes(",") ? raw.split(",").pop() || "" : raw, "base64");
+}
+
+function assertDocxUpload(file: any) {
+  const name = String(file?.name || "");
+  if (!name.toLowerCase().endsWith(".docx")) throw new Error("Only .docx uploads are supported for SWMS documents");
+  const buffer = decodeAttachmentData(file);
+  if (!buffer.length) throw new Error("Uploaded DOCX file is empty");
+  return { name, buffer };
+}
+
+function publicSwmsItem(item: any) {
+  const { filePath, ...safe } = item;
+  return safe;
+}
+
+async function saveSwmsDbPatch(patch: any) {
+  const current = await readLocalDb();
+  const next = { ...current, ...patch, updatedAt: new Date().toISOString() };
+  await writeLocalDb(next);
+  return next;
+}
+
+app.get("/api/swms/library", async (_req, res) => {
+  const db = await readLocalDb();
+  res.json({ items: (db.swmsLibrary || []).map(publicSwmsItem) });
+});
+
+app.post("/api/swms/library", async (req, res) => {
+  try {
+    const { name, buffer } = assertDocxUpload(req.body?.file);
+    const checksum = createHash("sha256").update(buffer).digest("hex");
+    const db = await readLocalDb();
+    const now = new Date().toISOString();
+    const title = cleanServiceM8Label(req.body?.title || name.replace(/\.docx$/i, ""));
+    const existing = (db.swmsLibrary || []).find((item: any) => item.checksum === checksum);
+    await fs.mkdir(SWMS_LIBRARY_DIR, { recursive: true });
+
+    if (existing) {
+      const updated = { ...existing, title, fileName: name, updatedAt: now };
+      const items = (db.swmsLibrary || []).map((item: any) => item.id === existing.id ? updated : item);
+      await saveSwmsDbPatch({ swmsLibrary: items });
+      return res.json({ item: publicSwmsItem(updated), duplicate: true });
+    }
+
+    const id = randomUUID();
+    const fileName = `${checksum.slice(0, 16)}-${safeDocxName(title)}.docx`;
+    const filePath = path.join(SWMS_LIBRARY_DIR, fileName);
+    await fs.writeFile(filePath, buffer);
+    const item = { id, title, fileName: name, storedFileName: fileName, filePath, checksum, createdAt: now, updatedAt: now };
+    await saveSwmsDbPatch({ swmsLibrary: [...(db.swmsLibrary || []), item] });
+    res.json({ item: publicSwmsItem(item), duplicate: false });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Failed to save SWMS library item" });
+  }
+});
+
+app.delete("/api/swms/library/:id", async (req, res) => {
+  const db = await readLocalDb();
+  const item = (db.swmsLibrary || []).find((entry: any) => entry.id === req.params.id);
+  const items = (db.swmsLibrary || []).filter((entry: any) => entry.id !== req.params.id);
+  if (item?.filePath) await fs.rm(item.filePath, { force: true }).catch(() => undefined);
+  await saveSwmsDbPatch({ swmsLibrary: items });
+  res.json({ ok: true });
+});
+
+app.post("/api/swms/project-docx", async (req, res) => {
+  try {
+    const { name, buffer } = assertDocxUpload(req.body?.file);
+    const checksum = createHash("sha256").update(buffer).digest("hex");
+    const db = await readLocalDb();
+    const now = new Date().toISOString();
+    const projectId = String(req.body?.projectId || "default");
+    const title = cleanServiceM8Label(req.body?.title || name.replace(/\.docx$/i, ""));
+    await fs.mkdir(SWMS_PROJECT_DIR, { recursive: true });
+    const id = randomUUID();
+    const fileName = `${projectId}-${checksum.slice(0, 16)}-${safeDocxName(title)}.docx`;
+    const filePath = path.join(SWMS_PROJECT_DIR, fileName);
+    await fs.writeFile(filePath, buffer);
+    const item = { id, projectId, title, fileName: name, storedFileName: fileName, filePath, checksum, createdAt: now, updatedAt: now };
+    await saveSwmsDbPatch({ swmsProjectFiles: [...(db.swmsProjectFiles || []), item] });
+    res.json({ item: publicSwmsItem(item) });
+  } catch (error: any) {
+    res.status(400).json({ error: error.message || "Failed to save project SWMS document" });
+  }
+});
+
+app.post("/api/swms/build", async (req, res) => {
+  try {
+    const db = await readLocalDb();
+    const selectedLibraryIds = new Set(Array.isArray(req.body?.selectedLibraryIds) ? req.body.selectedLibraryIds : []);
+    const selectedProjectDocumentIds = new Set(Array.isArray(req.body?.selectedProjectDocumentIds) ? req.body.selectedProjectDocumentIds : []);
+    const documents = [
+      ...(db.swmsLibrary || []).filter((item: any) => selectedLibraryIds.has(item.id)),
+      ...(db.swmsProjectFiles || []).filter((item: any) => selectedProjectDocumentIds.has(item.id)),
+    ];
+
+    if (!documents.length) return res.status(400).json({ error: "Select at least one SWMS document" });
+
+    const tempDir = await fs.mkdtemp(path.join(os.tmpdir(), "autoform-swms-"));
+    const inputPath = path.join(tempDir, "swms-build.json");
+    const outputPath = path.join(tempDir, "output.sm8f");
+    const title = String(req.body?.title || "Electrical & Solar Installation SWMS").trim();
+    await fs.writeFile(inputPath, JSON.stringify({
+      title,
+      documents: documents.map((item: any) => ({ title: item.title, path: item.filePath })),
+    }, null, 2), "utf8");
+
+    await runNodeScript(path.join(process.cwd(), "scripts", "build-swms-sm8f.mjs"), [inputPath, outputPath]);
+    const file = await fs.readFile(outputPath);
+    res.setHeader("Content-Type", "application/octet-stream");
+    res.setHeader("Content-Disposition", `attachment; filename="${cleanServiceM8Label(title).replace(/\s+/g, "-").toLowerCase()}.sm8f"`);
+    res.send(file);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message || "Failed to build SWMS SM8F" });
+  }
+});
 
 app.post("/api/sm8f/build", async (req, res) => {
   try {

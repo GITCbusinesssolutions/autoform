@@ -11,3 +11,5 @@ coverage/
 *.zip
 tmp-*
 data/local-db.json
+data/swms-library/
+data/swms-project-files/

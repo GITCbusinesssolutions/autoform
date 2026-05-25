@@ -30,14 +30,19 @@ import { motion } from "motion/react";
 import { saveAs } from "file-saver";
 import {
   buildSm8f,
+  buildSwmsSm8f,
   checkAdminAccess,
+  deleteSwmsLibraryItem,
   getAiStatus,
   loadCodexResponse,
   loadProjectsFromDb,
+  loadSwmsLibrary,
   requestFormPlan,
   saveOpenAiKey,
   saveProjectsToDb,
   reviseFormPlan,
+  uploadSwmsLibraryItem,
+  uploadSwmsProjectDocument,
 } from "./services/codexGeneratorService";
 import {
   AiPlanResponse,
@@ -49,6 +54,8 @@ import {
   GenerationState,
   ProjectRecord,
   ServiceM8Field,
+  SwmsBuilderState,
+  SwmsLibraryItem,
   ToolMode,
 } from "./types";
 import { cn } from "./lib/utils";
@@ -92,6 +99,14 @@ const starterSpec: FormSpec = {
   designSettings: defaultDesign,
 };
 
+const defaultSwmsBuilder = (): SwmsBuilderState => ({
+  title: "Electrical & Solar Installation SWMS",
+  selectedLibraryIds: [],
+  selectedProjectDocumentIds: [],
+  projectDocuments: [],
+  saveUploadsToLibrary: true,
+});
+
 function uid(prefix = "id") {
   return `${prefix}_${crypto.randomUUID()}`;
 }
@@ -103,7 +118,7 @@ function cleanBadge(value: string) {
 function emptyProject(mode: ToolMode = "create_from_prompt"): ProjectRecord {
   return {
     id: uid("project"),
-    title: "New Autoform request",
+    title: mode === "swms_builder" ? "New SWMS package" : "New Autoform request",
     mode,
     updatedAt: new Date().toISOString(),
     messages: [
@@ -117,6 +132,7 @@ function emptyProject(mode: ToolMode = "create_from_prompt"): ProjectRecord {
     spec: starterSpec,
     state: "idle",
     designSettings: defaultDesign,
+    swmsBuilder: mode === "swms_builder" ? defaultSwmsBuilder() : undefined,
   };
 }
 
@@ -499,22 +515,26 @@ export default function App() {
           </div>
           <div className="flex items-center gap-3">
             <StatePill state={project.state} />
-            <button onClick={() => { setShowNewMenu(false); setShowChat(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
-              <MessageSquareText size={17} />
-              AI chat
-            </button>
-            <button onClick={() => { setShowNewMenu(false); setShowDesign(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
-              <Paintbrush size={17} />
-              Design brief
-            </button>
-            <button onClick={() => { setShowNewMenu(false); setShowPreview(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
-              <FileText size={17} />
-              Preview
-            </button>
-            <button onClick={handleBuild} disabled={!spec.fields.length || isWorking} className="flex items-center gap-2 bg-zinc-950 text-white rounded-[8px] px-4 py-2.5 text-sm font-semibold disabled:opacity-40">
-              {isWorking && project.state === "building" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
-              Generate SM8F
-            </button>
+            {project.mode !== "swms_builder" && (
+              <>
+                <button onClick={() => { setShowNewMenu(false); setShowChat(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+                  <MessageSquareText size={17} />
+                  AI chat
+                </button>
+                <button onClick={() => { setShowNewMenu(false); setShowDesign(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+                  <Paintbrush size={17} />
+                  Design brief
+                </button>
+                <button onClick={() => { setShowNewMenu(false); setShowPreview(true); }} className="flex items-center gap-2 border border-zinc-300 bg-white text-zinc-800 rounded-[8px] px-4 py-2.5 text-sm font-semibold">
+                  <FileText size={17} />
+                  Preview
+                </button>
+                <button onClick={handleBuild} disabled={!spec.fields.length || isWorking} className="flex items-center gap-2 bg-zinc-950 text-white rounded-[8px] px-4 py-2.5 text-sm font-semibold disabled:opacity-40">
+                  {isWorking && project.state === "building" ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
+                  Generate SM8F
+                </button>
+              </>
+            )}
           </div>
         </header>
 
@@ -532,6 +552,7 @@ export default function App() {
             isWorking={isWorking}
             hasOpenAiKey={hasOpenAiKey}
             error={error}
+            updateProject={updateProject}
             updateSpec={updateSpec}
             design={project.designSettings}
             updateDesign={updateDesign}
@@ -619,11 +640,20 @@ function Workspace(props: {
   isWorking: boolean;
   hasOpenAiKey: boolean;
   error: string;
+  updateProject: (patch: Partial<ProjectRecord>) => void;
   updateSpec: (spec: FormSpec) => void;
   design: DesignSettings;
   updateDesign: (design: DesignSettings) => void;
   fieldCounts: { total: number; required: number; conditional: number; photos: number };
 }) {
+  if (props.project.mode === "swms_builder") {
+    return (
+      <div className="min-h-[calc(100vh-5rem)] p-4 lg:p-6">
+        <SwmsBuilderWorkspace project={props.project} updateProject={props.updateProject} isWorking={props.isWorking} />
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-[calc(100vh-5rem)] p-4 lg:p-6">
       <section className="space-y-5 min-w-0">
@@ -631,6 +661,195 @@ function Workspace(props: {
         <SpecEditor spec={props.spec} updateSpec={props.updateSpec} design={props.design} updateDesign={props.updateDesign} />
       </section>
     </div>
+  );
+}
+
+function SwmsBuilderWorkspace({ project, updateProject, isWorking }: { project: ProjectRecord; updateProject: (patch: Partial<ProjectRecord>) => void; isWorking: boolean }) {
+  const [library, setLibrary] = useState<SwmsLibraryItem[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isBuilding, setIsBuilding] = useState(false);
+  const [error, setError] = useState("");
+  const state = project.swmsBuilder || defaultSwmsBuilder();
+  const selectedLibraryIds = new Set(state.selectedLibraryIds);
+  const selectedProjectIds = new Set(state.selectedProjectDocumentIds);
+  const selectedCount = state.selectedLibraryIds.length + state.selectedProjectDocumentIds.length;
+
+  const updateSwms = (patch: Partial<SwmsBuilderState>) => {
+    const next = { ...state, ...patch };
+    updateProject({ swmsBuilder: next, title: next.title || project.title });
+  };
+
+  const refreshLibrary = () => {
+    setIsLoading(true);
+    loadSwmsLibrary()
+      .then(setLibrary)
+      .catch((err) => setError(err.message || "Failed to load SWMS library"))
+      .finally(() => setIsLoading(false));
+  };
+
+  useEffect(() => {
+    refreshLibrary();
+  }, []);
+
+  const toggleLibrary = (id: string) => {
+    updateSwms({
+      selectedLibraryIds: selectedLibraryIds.has(id)
+        ? state.selectedLibraryIds.filter((item) => item !== id)
+        : [...state.selectedLibraryIds, id],
+    });
+  };
+
+  const toggleProjectDoc = (id: string) => {
+    updateSwms({
+      selectedProjectDocumentIds: selectedProjectIds.has(id)
+        ? state.selectedProjectDocumentIds.filter((item) => item !== id)
+        : [...state.selectedProjectDocumentIds, id],
+    });
+  };
+
+  const uploadDocx = async (files: FileList | null) => {
+    const file = files?.[0];
+    if (!file) return;
+    setError("");
+    setIsLoading(true);
+    try {
+      const attachment = await fileToAttachment(file);
+      const title = file.name.replace(/\.docx$/i, "").replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+      if (state.saveUploadsToLibrary) {
+        const result = await uploadSwmsLibraryItem({ title, file: attachment });
+        const nextLibrary = await loadSwmsLibrary();
+        setLibrary(nextLibrary);
+        updateSwms({ selectedLibraryIds: Array.from(new Set([...state.selectedLibraryIds, result.item.id])) });
+      } else {
+        const result = await uploadSwmsProjectDocument({ projectId: project.id, title, file: attachment });
+        updateSwms({
+          projectDocuments: [...state.projectDocuments, result.item],
+          selectedProjectDocumentIds: [...state.selectedProjectDocumentIds, result.item.id],
+        });
+      }
+    } catch (err: any) {
+      setError(err.message || "Failed to upload SWMS DOCX");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const deleteLibraryItem = async (id: string) => {
+    setError("");
+    setIsLoading(true);
+    try {
+      await deleteSwmsLibraryItem(id);
+      setLibrary((items) => items.filter((item) => item.id !== id));
+      updateSwms({ selectedLibraryIds: state.selectedLibraryIds.filter((item) => item !== id) });
+    } catch (err: any) {
+      setError(err.message || "Failed to delete library item");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const buildPackage = async () => {
+    setError("");
+    setIsBuilding(true);
+    try {
+      updateProject({ state: "building" });
+      const blob = await buildSwmsSm8f({
+        title: state.title,
+        selectedLibraryIds: state.selectedLibraryIds,
+        selectedProjectDocumentIds: state.selectedProjectDocumentIds,
+      });
+      saveAs(blob, `${state.title.replace(/[^a-z0-9]+/gi, "-").replace(/^-|-$/g, "").toLowerCase() || "swms"}.sm8f`);
+      updateProject({ state: "ready" });
+    } catch (err: any) {
+      setError(err.message || "Failed to build SWMS SM8F");
+      updateProject({ state: "error" });
+    } finally {
+      setIsBuilding(false);
+    }
+  };
+
+  const selectedTitles = [
+    ...library.filter((item) => selectedLibraryIds.has(item.id)),
+    ...state.projectDocuments.filter((item) => selectedProjectIds.has(item.id)),
+  ].map((item) => item.title);
+
+  return (
+    <section className="grid gap-5 xl:grid-cols-[1fr_360px]">
+      <div className="space-y-5">
+        <div className="rounded-[8px] border border-zinc-200 bg-white">
+          <PanelTitle icon={ShieldAlert} title="SWMS Builder" subtitle="Select DOCX library documents and package them into a ServiceM8 form" />
+          <div className="grid gap-3 border-b border-zinc-200 p-4 md:grid-cols-[1fr_220px]">
+            <TextInput label="Form / package name" value={state.title} onChange={(title) => updateSwms({ title })} />
+            <label className="flex items-end gap-2 rounded-[8px] border border-zinc-200 px-3 py-2 text-sm text-zinc-700">
+              <input type="checkbox" checked={state.saveUploadsToLibrary} onChange={(event) => updateSwms({ saveUploadsToLibrary: event.target.checked })} className="mb-1 h-4 w-4 accent-lime-400" />
+              Save uploads to library
+            </label>
+          </div>
+          <div className="p-4">
+            <label className="flex cursor-pointer items-center justify-center gap-2 rounded-[8px] border border-dashed border-zinc-300 bg-zinc-50 px-4 py-6 text-sm font-semibold text-zinc-700 hover:bg-zinc-100">
+              <Upload size={18} />
+              Upload SWMS DOCX
+              <input className="hidden" type="file" accept=".docx" onChange={(event) => { void uploadDocx(event.currentTarget.files); event.currentTarget.value = ""; }} />
+            </label>
+          </div>
+        </div>
+
+        <div className="rounded-[8px] border border-zinc-200 bg-white">
+          <PanelTitle icon={FileArchive} title="Reusable SWMS library" subtitle="Selected items become the SWMS Required choices" />
+          <div className="divide-y divide-zinc-100">
+            {library.length ? library.map((item) => (
+              <div key={item.id} className="flex items-center gap-3 p-4">
+                <input type="checkbox" checked={selectedLibraryIds.has(item.id)} onChange={() => toggleLibrary(item.id)} className="h-4 w-4 accent-lime-400" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate font-semibold">{item.title}</p>
+                  <p className="truncate text-xs text-zinc-500">{item.fileName}</p>
+                </div>
+                <button onClick={() => deleteLibraryItem(item.id)} className="rounded border border-zinc-200 px-2 py-1 text-xs text-zinc-500 hover:bg-zinc-50">Delete</button>
+              </div>
+            )) : (
+              <p className="p-4 text-sm text-zinc-500">{isLoading ? "Loading library..." : "Upload DOCX files to start your SWMS library."}</p>
+            )}
+          </div>
+        </div>
+
+        {!!state.projectDocuments.length && (
+          <div className="rounded-[8px] border border-zinc-200 bg-white">
+            <PanelTitle icon={FileText} title="Project-only SWMS documents" subtitle="These uploads are available only for this package" />
+            <div className="divide-y divide-zinc-100">
+              {state.projectDocuments.map((item) => (
+                <label key={item.id} className="flex items-center gap-3 p-4">
+                  <input type="checkbox" checked={selectedProjectIds.has(item.id)} onChange={() => toggleProjectDoc(item.id)} className="h-4 w-4 accent-lime-400" />
+                  <span className="min-w-0">
+                    <span className="block truncate font-semibold">{item.title}</span>
+                    <span className="block truncate text-xs text-zinc-500">{item.fileName}</span>
+                  </span>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      <aside className="rounded-[8px] border border-zinc-200 bg-white p-5">
+        <div className="flex items-center gap-3">
+          <Box className="text-lime-600" />
+          <div>
+            <h2 className="font-semibold">SWMS package</h2>
+            <p className="text-xs text-zinc-500">{selectedCount} selected document{selectedCount === 1 ? "" : "s"}</p>
+          </div>
+        </div>
+        <div className="mt-5 space-y-2">
+          {selectedTitles.length ? selectedTitles.map((title) => (
+            <div key={title} className="rounded-[8px] border border-zinc-200 px-3 py-2 text-sm">{title}</div>
+          )) : <p className="text-sm text-zinc-500">Select or upload SWMS DOCX files.</p>}
+        </div>
+        <button onClick={buildPackage} disabled={!selectedCount || isBuilding || isWorking} className="mt-5 flex w-full items-center justify-center gap-2 rounded-[8px] bg-zinc-950 px-4 py-3 text-sm font-semibold text-white disabled:opacity-40">
+          {isBuilding ? <Loader2 className="animate-spin" size={17} /> : <Download size={17} />}
+          Generate SWMS .sm8f
+        </button>
+        {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+      </aside>
+    </section>
   );
 }
 

@@ -99,9 +99,28 @@ export interface ProjectRecord {
   spec: FormSpec | null;
   state: GenerationState;
   designSettings: DesignSettings;
+  swmsBuilder?: SwmsBuilderState;
   codexRequestId?: string;
   codexRequestPath?: string;
   codexResponsePath?: string;
+}
+
+export interface SwmsLibraryItem {
+  id: string;
+  title: string;
+  fileName: string;
+  storedFileName?: string;
+  checksum: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SwmsBuilderState {
+  title: string;
+  selectedLibraryIds: string[];
+  selectedProjectDocumentIds: string[];
+  projectDocuments: SwmsLibraryItem[];
+  saveUploadsToLibrary: boolean;
 }
 
 export type GeneratedForm = FormSpec;

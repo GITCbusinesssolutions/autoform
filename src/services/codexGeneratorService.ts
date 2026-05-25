@@ -1,4 +1,4 @@
-import { AiPlanResponse, AttachmentPayload, DesignSettings, FormSpec, ToolMode } from "../types";
+import { AiPlanResponse, AttachmentPayload, DesignSettings, FormSpec, SwmsLibraryItem, ToolMode } from "../types";
 import type { ProjectRecord } from "../types";
 
 export type ReferenceFilePayload = AttachmentPayload;
@@ -100,6 +100,53 @@ export async function saveOpenAiKey(apiKey: string): Promise<{ ok: boolean; mess
     body: JSON.stringify({ apiKey }),
   });
   return readJson(response);
+}
+
+export async function loadSwmsLibrary(): Promise<SwmsLibraryItem[]> {
+  const response = await fetch("/api/swms/library");
+  const data = await readJson<{ items: SwmsLibraryItem[] }>(response);
+  return data.items || [];
+}
+
+export async function uploadSwmsLibraryItem(input: { title: string; file: AttachmentPayload }): Promise<{ item: SwmsLibraryItem; duplicate: boolean }> {
+  const response = await fetch("/api/swms/library", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readJson(response);
+}
+
+export async function uploadSwmsProjectDocument(input: { projectId: string; title: string; file: AttachmentPayload }): Promise<{ item: SwmsLibraryItem }> {
+  const response = await fetch("/api/swms/project-docx", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+  return readJson(response);
+}
+
+export async function deleteSwmsLibraryItem(id: string): Promise<void> {
+  const response = await fetch(`/api/swms/library/${encodeURIComponent(id)}`, { method: "DELETE" });
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to delete SWMS library item");
+  }
+}
+
+export async function buildSwmsSm8f(input: { title: string; selectedLibraryIds: string[]; selectedProjectDocumentIds: string[] }): Promise<Blob> {
+  const response = await fetch("/api/swms/build", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(input),
+  });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => ({}));
+    throw new Error(data.error || "Failed to build SWMS SM8F");
+  }
+
+  return response.blob();
 }
 
 export async function generateFormStructure(): Promise<FormSpec> {
